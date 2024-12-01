@@ -39,16 +39,12 @@ export const userCreate = async ({
       ])
       .select();
 
-    if (error) {
-      console.error("Supabase Insert Error:", error);
-      throw new Error(`Supabase insert failed: ${error.message}`);
-    }
+    console.log("data", data);
+    console.log("error", error);
 
-    console.log("Inserted User:", data);
+    if (error?.code) return error;
     return data;
   } catch (error: any) {
-    console.error("Error in userCreate function:", error);
-    throw new Error(`userCreate error: ${error.message}`);
+    throw new Error(error.message);
   }
 };
-

@@ -74,6 +74,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/xml2js": "^0.4.14",
     "autoprefixer": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",

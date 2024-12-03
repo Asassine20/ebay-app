@@ -5,7 +5,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
   const { userId, email, priceId, subscription } = await req.json();
-
+  console.log(process.env.STRIPE_SECRET_KEY);
+  console.log(process.env.FRONTEND_URL);
   if (subscription) {
     try {
       const session = await stripe.checkout.sessions.create({

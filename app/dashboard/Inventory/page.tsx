@@ -20,26 +20,28 @@ export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("Click 'Load Listings' to start.");
-  const [allLoaded, setAllLoaded] = useState(false);
+  const [status, setStatus] = useState("Loading...");
+  const [totalPages, setTotalPages] = useState(1);
   const entriesPerPage = 200;
 
-  const fetchListings = async () => {
-    if (loading || allLoaded) return;
+  useEffect(() => {
+    fetchListings(currentPage); // Fetch items for the current page whenever it changes
+  }, [currentPage]);
+
+  const fetchListings = async (page: number) => {
     setLoading(true);
+    setStatus(`Loading page ${page}...`);
 
     try {
-      setStatus(`Loading page ${currentPage}...`);
-
       const response = await fetch(
-        `/api/ebay-listings?page=${currentPage}&entriesPerPage=${entriesPerPage}`
+        `/api/ebay-listings?page=${page}&entriesPerPage=${entriesPerPage}`
       );
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
 
-      const data: Item[] = await response.json();
+      const data = await response.json();
 
       if (!Array.isArray(data)) {
         console.error("Expected an array but got:", data);
@@ -48,14 +50,13 @@ export default function InventoryPage() {
       }
 
       if (data.length === 0) {
-        setStatus("All items have been loaded.");
-        setAllLoaded(true);
+        setStatus("No more items available.");
         return;
       }
 
-      setItems((prevItems) => [...prevItems, ...data]);
-      setStatus(`Loaded ${data.length} items from page ${currentPage}.`);
-      setCurrentPage((prevPage) => prevPage + 1);
+      setItems(data);
+      setTotalPages(Math.ceil(4111 / entriesPerPage)); // Adjust based on total entries if known
+      setStatus(`Page ${page} loaded successfully.`);
     } catch (error) {
       console.error("Error fetching listings:", error);
       setStatus(`Error: ${(error as Error).message}`);
@@ -64,21 +65,44 @@ export default function InventoryPage() {
     }
   };
 
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((prevPage) => prevPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prevPage) => prevPage - 1);
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>
-      <div className="mb-4">
+      <div className="mb-4 flex justify-between">
         <button
-          onClick={fetchListings}
-          disabled={loading || allLoaded}
+          onClick={handlePreviousPage}
+          disabled={loading || currentPage === 1}
           className={`px-4 py-2 text-white rounded ${
-            loading || allLoaded ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-700"
+            currentPage === 1 ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-700"
           }`}
         >
-          {allLoaded ? "All Items Loaded" : "Load Listings"}
+          Previous
+        </button>
+        <p className="text-gray-600">{status}</p>
+        <button
+          onClick={handleNextPage}
+          disabled={loading || currentPage === totalPages}
+          className={`px-4 py-2 text-white rounded ${
+            currentPage === totalPages
+              ? "bg-gray-400"
+              : "bg-blue-500 hover:bg-blue-700"
+          }`}
+        >
+          Next
         </button>
       </div>
-      <p className="text-gray-600 mb-4">{status}</p>
       <table className="table-auto w-full border-collapse border border-gray-300">
         <thead>
           <tr className="bg-gray-200">
@@ -115,6 +139,11 @@ export default function InventoryPage() {
           ))}
         </tbody>
       </table>
+      <div className="mt-4 text-center">
+        <p>
+          Page {currentPage} of {totalPages}
+        </p>
+      </div>
     </div>
   );
 }

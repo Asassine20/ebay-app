@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import React, { useState, useEffect } from "react";
 
@@ -8,6 +9,7 @@ interface Item {
   Price: string;
   Quantity: string;
   Variations: Variation[];
+  TotalSold: number; // Add this property
 }
 
 interface Variation {
@@ -104,40 +106,37 @@ export default function InventoryPage() {
         </button>
       </div>
       <table className="table-auto w-full border-collapse border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border border-gray-300 px-4 py-2">Item ID</th>
-            <th className="border border-gray-300 px-4 py-2">Title</th>
-            <th className="border border-gray-300 px-4 py-2">Price</th>
-            <th className="border border-gray-300 px-4 py-2">Quantity</th>
-            <th className="border border-gray-300 px-4 py-2">Variations</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <React.Fragment key={item.ItemID}>
-              <tr>
-                <td className="border border-gray-300 px-4 py-2">{item.ItemID}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.Title}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.Price}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.Quantity}</td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.Variations.length > 0 ? item.Variations.length : "None"}
-                </td>
-              </tr>
-              {item.Variations.map((variation, index) => (
-                <tr key={`${item.ItemID}-${index}`} className="bg-gray-50">
-                  <td colSpan={2} className="border border-gray-300 px-4 py-2">
-                    {variation.Specifics.map((spec) => `${spec.Name}: ${spec.Value}`).join(", ")}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">{variation.Price}</td>
-                  <td className="border border-gray-300 px-4 py-2">{variation.Quantity}</td>
-                  <td className="border border-gray-300 px-4 py-2">Variation</td>
-                </tr>
-              ))}
-            </React.Fragment>
-          ))}
-        </tbody>
+      <thead>
+      <tr className="bg-gray-200">
+        <th className="border border-gray-300 px-4 py-2">Item ID</th>
+        <th className="border border-gray-300 px-4 py-2">Title</th>
+        <th className="border border-gray-300 px-4 py-2">Price</th>
+        <th className="border border-gray-300 px-4 py-2">Quantity</th>
+        <th className="border border-gray-300 px-4 py-2">Sold</th>
+        <th className="border border-gray-300 px-4 py-2">Variations</th>
+      </tr>
+    </thead>
+    <tbody>
+      {items.map((item) => (
+        <tr key={item.ItemID}>
+          <td className="border border-gray-300 px-4 py-2">
+          <Link href={`/dashboard/inventory/${item.ItemID}`} className="text-blue-500 hover:underline">
+  {item.ItemID}
+</Link>
+
+          </td>
+          <td className="border border-gray-300 px-4 py-2">{item.Title}</td>
+          <td className="border border-gray-300 px-4 py-2">{item.Price}</td>
+          <td className="border border-gray-300 px-4 py-2">{item.Quantity}</td>
+          <td className="border border-gray-300 px-4 py-2">{item.TotalSold}</td>
+
+          <td className="border border-gray-300 px-4 py-2">
+            {item.Variations.length > 0 ? item.Variations.length : "None"}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+
       </table>
       <div className="mt-4 text-center">
         <p>

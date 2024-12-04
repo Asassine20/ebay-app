@@ -15,11 +15,8 @@ import { useAuth } from "@clerk/nextjs";
 import { Dialog, DialogClose } from "@radix-ui/react-dialog";
 
 export default function NavBar() {
-    let userId = null;
-    if (config?.auth?.enabled) {
-        const user = useAuth();
-        userId = user?.userId;
-    }
+    const { userId } = useAuth(); // Always call the hook, even if auth is disabled
+    const isAuthenticated = config?.auth?.enabled && userId;
 
     return (
         <div className="flex min-w-full fixed justify-between p-2 border-b z-10 dark:bg-black dark:bg-opacity-50 bg-white">
@@ -41,20 +38,22 @@ export default function NavBar() {
                                 </Link>
                             </DialogClose>
                             <DialogClose asChild>
-                                <Link href="#marketing-cards">
+                                <Link href="/#reviews">
                                     <Button variant="outline" className="w-full">Marketing</Button>
                                 </Link>
                             </DialogClose>
                             <DialogClose asChild>
-                                <Link href="#pricing">
+                                <Link href="/#pricing">
                                     <Button variant="outline" className="w-full">Pricing</Button>
                                 </Link>
                             </DialogClose>
-                            <DialogClose asChild>
-                                <Link href="/dashboard">
-                                    <Button variant="outline" className="w-full">Dashboard</Button>
-                                </Link>
-                            </DialogClose>
+                            {isAuthenticated && (
+                                <DialogClose asChild>
+                                    <Link href="/dashboard">
+                                        <Button variant="outline" className="w-full">Dashboard</Button>
+                                    </Link>
+                                </DialogClose>
+                            )}
                         </div>
                     </SheetContent>
                 </Dialog>
@@ -67,24 +66,34 @@ export default function NavBar() {
                         <span className="sr-only">Home</span>
                     </Link>
                     <NavigationMenuItem>
-                        <Link href="#marketing-cards" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                        <Link href="/#reviews" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
                             Reviews
                         </Link>
                     </NavigationMenuItem>
                     <NavigationMenuItem>
-                        <Link href="#pricing" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                        <Link href="/#pricing" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
                             Pricing
                         </Link>
                     </NavigationMenuItem>
-                    <NavigationMenuItem>
-                        <Link href="/dashboard" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
-                            Dashboard
-                        </Link>
-                    </NavigationMenuItem>
+                    {isAuthenticated && (
+                        <NavigationMenuItem>
+                            <Link href="/dashboard" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                                Dashboard
+                            </Link>
+                        </NavigationMenuItem>
+                    )}
                 </NavigationMenuList>
             </NavigationMenu>
             <div className="flex items-center gap-2 max-[825px]:hidden">
-                {userId && <UserProfile />}
+                {isAuthenticated ? (
+                    <UserProfile />
+                ) : (
+                    <Link href="/sign-up">
+                        <Button variant="outline" className="px-4 py-2">
+                            Sign Up
+                        </Button>
+                    </Link>
+                )}
                 <ModeToggle />
             </div>
         </div>

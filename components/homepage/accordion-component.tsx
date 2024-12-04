@@ -73,7 +73,7 @@ export function AccordionComponent() {
                         <p>
                             Yes, your data is securely encrypted and protected using industry-leading standards.
                             We prioritize your privacy and promise to never share it with anyone else. We also make 
-                            sure to comply with eBay's security guidelines.
+                            sure to comply with eBay&apos;s security guidelines.
                         </p>
                     </AccordionContent>
                 </AccordionItem>

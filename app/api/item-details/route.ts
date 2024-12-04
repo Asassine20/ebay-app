@@ -6,7 +6,7 @@ const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
 const authToken = process.env.AUTH_TOKEN;
 
 // Helper to fetch sales data for a specific variation
-async function fetchVariationSales(itemId: string, specifics: any[]): Promise<number> {
+async function fetchVariationSales(itemId: string): Promise<Record<string, number>> {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - 30); // Last 30 days
@@ -35,45 +35,43 @@ async function fetchVariationSales(itemId: string, specifics: any[]): Promise<nu
 
   try {
     const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+    const xml = await res.text();
+
     if (!res.ok) {
       console.error(`Error fetching transaction data for ItemID: ${itemId}, Status: ${res.status}`);
-      return 0;
+      return {};
     }
 
-    const xml = await res.text();
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+    console.log("Parsed API Response for fetchVariationSales:", parsedData);
+
     const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
 
     if (!transactions) {
-      console.log("No transactions found for ItemID:", itemId);
-      return 0;
+      console.log(`No transactions found for ItemID: ${itemId}`);
+      return {};
     }
 
     const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
-    let totalSales = 0;
+    const salesData: Record<string, number> = {};
 
     transactionArray.forEach((txn) => {
-      const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList || [];
-      const isMatchingVariation = specifics.every((specific) =>
-        variationSpecifics.some(
-          (txnSpecific: any) =>
-            txnSpecific.Name === specific.Name && txnSpecific.Value === specific.Value
-        )
-      );
-
-      if (isMatchingVariation) {
+      const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList;
+      if (variationSpecifics) {
+        const nameValue = Array.isArray(variationSpecifics)
+          ? variationSpecifics.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
+          : `${variationSpecifics.Name}: ${variationSpecifics.Value}`;
         const quantity = parseInt(txn.QuantityPurchased, 10) || 0;
-        totalSales += quantity;
-        console.log(
-          `Matched transaction for Variation: ${JSON.stringify(specifics)} - Quantity Sold: ${quantity}`
-        );
+
+        salesData[nameValue] = (salesData[nameValue] || 0) + quantity;
+        console.log(`Variation: ${nameValue}, Quantity Sold: ${quantity}`);
       }
     });
 
-    return totalSales;
+    return salesData;
   } catch (error) {
-    console.error("Error fetching transactions:", error);
-    return 0;
+    console.error("Error in fetchVariationSales:", error);
+    return {};
   }
 }
 
@@ -97,11 +95,12 @@ async function getItemDetails(itemId: string) {
 
   try {
     const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+    const xml = await res.text();
+
     if (!res.ok) {
       throw new Error(`eBay API returned status ${res.status}`);
     }
 
-    const xml = await res.text();
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
     const itemDetails = parsedData.GetItemResponse?.Item;
 
@@ -109,41 +108,31 @@ async function getItemDetails(itemId: string) {
       throw new Error("Item not found in the response.");
     }
 
-    const variations = await Promise.all(
-      (itemDetails.Variations?.Variation || []).map(async (variation: any) => {
-        const nameValueList = variation.VariationSpecifics?.NameValueList;
-        const specifics = Array.isArray(nameValueList)
-          ? nameValueList.map((specific: any) => ({
-              Name: specific.Name || "Unknown",
-              Value: specific.Value || "Unknown",
-            }))
-          : [];
+    const salesData = await fetchVariationSales(itemDetails.ItemID);
 
-        const sales = await fetchVariationSales(itemDetails.ItemID, specifics);
-
-        const variationName = specifics
-          .map((specific) => `${specific.Name}: ${specific.Value}`)
-          .join(", ");
-
-        return {
-          Name: variationName || "N/A",
-          Price: variation.StartPrice?._ || variation.StartPrice || "0.0",
-          Quantity: variation.Quantity || "0",
-          Sales: sales,
-          Specifics: specifics,
-        };
-      })
-    );
+    const variations = (itemDetails.Variations?.Variation || []).map((variation: any) => {
+      const nameValueList = variation.VariationSpecifics?.NameValueList || [];
+      const specifics = Array.isArray(nameValueList)
+        ? nameValueList.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
+        : `${nameValueList.Name}: ${nameValueList.Value}`;
+    
+      return {
+        Name: specifics,
+        Price: variation.StartPrice?._ || variation.StartPrice || "0.0",
+        Quantity: variation.Quantity || "0", // Use QuantityAvailable if present
+        QuantitySold: salesData[specifics] || 0,
+      };
+    });
+    
 
     return {
       ItemID: itemDetails.ItemID || "N/A",
       Title: itemDetails.Title || "N/A",
-      Price: itemDetails.SellingStatus?.CurrentPrice?._ || "0.0",
-      Quantity: itemDetails.QuantityAvailable || "0",
+      Quantity: itemDetails.QuantityAvailable || "N/A",
       Variations: variations,
     };
   } catch (error) {
-    console.error("Error fetching item details:", error);
+    console.error("Error in getItemDetails:", error);
     throw error;
   }
 }
@@ -161,6 +150,7 @@ export async function GET(req: NextRequest) {
     const itemDetails = await getItemDetails(itemId);
     return NextResponse.json(itemDetails);
   } catch (error: any) {
+    console.error("API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

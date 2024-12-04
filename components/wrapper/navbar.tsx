@@ -66,6 +66,11 @@ export default function NavBar() {
                         <span className="sr-only">Home</span>
                     </Link>
                     <NavigationMenuItem>
+                        <Link href="/#solutions" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                            Solutions
+                        </Link>
+                    </NavigationMenuItem>
+                    <NavigationMenuItem>
                         <Link href="/#reviews" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
                             Reviews
                         </Link>

@@ -45,12 +45,13 @@ export default function ItemDetailsPage() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">{item.Title}</h1>
-      <p>Price: {item.Price}</p>
-      <p>Quantity: {item.Quantity}</p>
+      <p>Price: ${item.overallPrice}</p>
+      <p>Quantity: {item.TotalQuantity}</p>
       <h2 className="text-xl font-bold mt-4">Variations:</h2>
       <table className="table-auto w-full border-collapse border border-gray-300">
         <thead>
           <tr className="bg-gray-200">
+            <th className="border border-gray-300 px-4 py-2">Image</th>
             <th className="border border-gray-300 px-4 py-2">Name</th>
             <th className="border border-gray-300 px-4 py-2">Price</th>
             <th className="border border-gray-300 px-4 py-2">Quantity Available</th>
@@ -61,9 +62,20 @@ export default function ItemDetailsPage() {
           {item.Variations && item.Variations.length > 0 ? (
             item.Variations.map((variation: any, index: number) => (
               <tr key={index}>
-                <td className="border border-gray-300 px-4 py-2">{variation.Name || "N/A"}</td>
-                <td className="border border-gray-300 px-4 py-2">{variation.Price}</td>
-                <td className="border border-gray-300 px-4 py-2">{variation.Quantity || "N/A"}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {variation.PictureURL ? (
+                    <img
+                      src={variation.PictureURL}
+                      alt={variation.Name || "Variation Image"}
+                      className="w-16 h-16 object-contain"
+                    />
+                  ) : (
+                    "N/A"
+                  )}
+                </td>                
+                <td className="border border-gray-300 px-4 py-2">{variation.Name || ""}</td>
+                <td className="border border-gray-300 px-4 py-2">${variation.Price}</td>
+                <td className="border border-gray-300 px-4 py-2">{variation.Quantity || 0}</td>
                 <td className="border border-gray-300 px-4 py-2">{variation.QuantitySold || 0}</td>
               </tr>
             ))

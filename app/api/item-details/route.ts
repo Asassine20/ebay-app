@@ -43,7 +43,6 @@ async function fetchVariationSales(itemId: string): Promise<Record<string, numbe
     }
 
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-    console.log("Parsed API Response for fetchVariationSales:", parsedData);
 
     const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
 
@@ -64,7 +63,6 @@ async function fetchVariationSales(itemId: string): Promise<Record<string, numbe
         const quantity = parseInt(txn.QuantityPurchased, 10) || 0;
 
         salesData[nameValue] = (salesData[nameValue] || 0) + quantity;
-        console.log(`Variation: ${nameValue}, Quantity Sold: ${quantity}`);
       }
     });
 
@@ -96,46 +94,61 @@ async function getItemDetails(itemId: string) {
   try {
     const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
     const xml = await res.text();
-
+  
     if (!res.ok) {
       throw new Error(`eBay API returned status ${res.status}`);
     }
-
+  
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
     const itemDetails = parsedData.GetItemResponse?.Item;
 
     if (!itemDetails) {
       throw new Error("Item not found in the response.");
     }
-
+  
     const salesData = await fetchVariationSales(itemDetails.ItemID);
-
+  
+    const pictures = itemDetails.Variations.Pictures.VariationSpecificPictureSet || [];
+  
     const variations = (itemDetails.Variations?.Variation || []).map((variation: any) => {
-      const nameValueList = variation.VariationSpecifics?.NameValueList || [];
+      const nameValueList = variation.VariationSpecifics?.NameValueList || {};
       const specifics = Array.isArray(nameValueList)
         ? nameValueList.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
         : `${nameValueList.Name}: ${nameValueList.Value}`;
-    
+  
+      const quantity = parseInt(variation.Quantity, 10) || 0;
+      const quantitySold = parseInt(variation.SellingStatus?.QuantitySold, 10) || 0;
+      const availableInventory = quantity - quantitySold;
+  
+      const variationValue = Array.isArray(nameValueList)
+        ? nameValueList.find((specific: any) => specific.Name === "Choose Your Card")?.Value
+        : nameValueList.Value;
+  
+      const picture = pictures.find(
+        (pic: any) => pic.VariationSpecificValue === variationValue
+      );
       return {
-        Name: specifics,
+        Name: variationValue || "N/A",
         Price: variation.StartPrice?._ || variation.StartPrice || "0.0",
-        Quantity: variation.Quantity || "0", // Use QuantityAvailable if present
+        Quantity: availableInventory, // Available inventory
         QuantitySold: salesData[specifics] || 0,
+        PictureURL: picture?.PictureURL || null, // Picture URL
       };
     });
-    
-
+  
     return {
       ItemID: itemDetails.ItemID || "N/A",
       Title: itemDetails.Title || "N/A",
       Quantity: itemDetails.QuantityAvailable || "N/A",
       Variations: variations,
+      TotalQuantity: itemDetails.Quantity,
+      overallPrice: itemDetails.StartPrice,
     };
   } catch (error) {
     console.error("Error in getItemDetails:", error);
     throw error;
   }
-}
+}  
 
 // Main API handler
 export async function GET(req: NextRequest) {

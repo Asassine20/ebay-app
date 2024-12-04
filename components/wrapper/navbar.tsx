@@ -1,4 +1,5 @@
-"use client"
+"use client";
+
 import Link from 'next/link';
 import * as React from "react";
 import { GiHamburgerMenu } from "react-icons/gi";
@@ -7,23 +8,14 @@ import { SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet
 import { UserProfile } from "../user-profile";
 import ModeToggle from "../mode-toggle";
 import { BlocksIcon } from "lucide-react";
-import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@/components/ui/navigation-menu";
+import { NavigationMenu, NavigationMenuItem, NavigationMenuList } from "@/components/ui/navigation-menu";
 import config from "@/config";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@clerk/nextjs";
 import { Dialog, DialogClose } from "@radix-ui/react-dialog";
 
-const components: { title: string; href: string; description: string }[] = [
-    {
-        title: "Marketing Page",
-        href: "/marketing-page",
-        description: "Write some wavy here to get them to click.",
-    },
-];
-
 export default function NavBar() {
     let userId = null;
-    /* eslint-disable react-hooks/rules-of-hooks */
     if (config?.auth?.enabled) {
         const user = useAuth();
         userId = user?.userId;
@@ -49,10 +41,18 @@ export default function NavBar() {
                                 </Link>
                             </DialogClose>
                             <DialogClose asChild>
-                                <Link href="/dashboard" legacyBehavior passHref className="cursor-pointer">
-                                    <Button variant="outline">
-                                        Dashboard
-                                    </Button>
+                                <Link href="#marketing-cards">
+                                    <Button variant="outline" className="w-full">Marketing</Button>
+                                </Link>
+                            </DialogClose>
+                            <DialogClose asChild>
+                                <Link href="#pricing">
+                                    <Button variant="outline" className="w-full">Pricing</Button>
+                                </Link>
+                            </DialogClose>
+                            <DialogClose asChild>
+                                <Link href="/dashboard">
+                                    <Button variant="outline" className="w-full">Dashboard</Button>
                                 </Link>
                             </DialogClose>
                         </div>
@@ -66,31 +66,19 @@ export default function NavBar() {
                         <BlocksIcon aria-hidden="true" />
                         <span className="sr-only">Home</span>
                     </Link>
-                </NavigationMenuList>
-                <NavigationMenuList>
-                    <NavigationMenuItem className="max-[825px]:hidden ml-5">
-                        <NavigationMenuTrigger className="dark:bg-black dark:bg-opacity-50">
-                            Features
-                        </NavigationMenuTrigger>
-                        <NavigationMenuContent>
-                            <ul className="flex flex-col w-[400px] gap-3 p-4 lg:w-[500px]">
-                                {components.map((component, index) => (
-                                    <ListItem
-                                        key={index}
-                                        title={component.title}
-                                        href={component.href}
-                                    >
-                                        {component.description}
-                                    </ListItem>
-                                ))}
-                            </ul>
-                        </NavigationMenuContent>
+                    <NavigationMenuItem>
+                        <Link href="#marketing-cards" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                            Reviews
+                        </Link>
                     </NavigationMenuItem>
-                    <NavigationMenuItem className="max-[825px]:hidden">
-                        <Link href="/dashboard" legacyBehavior passHref>
-                            <Button variant="ghost">
-                                Dashboard
-                            </Button>
+                    <NavigationMenuItem>
+                        <Link href="#pricing" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                            Pricing
+                        </Link>
+                    </NavigationMenuItem>
+                    <NavigationMenuItem>
+                        <Link href="/dashboard" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                            Dashboard
                         </Link>
                     </NavigationMenuItem>
                 </NavigationMenuList>
@@ -102,29 +90,3 @@ export default function NavBar() {
         </div>
     );
 }
-
-const ListItem = React.forwardRef<
-    React.ElementRef<"a">,
-    React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => {
-    return (
-        <li>
-            <NavigationMenuLink asChild>
-                <a
-                    ref={ref}
-                    className={cn(
-                        "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                        className
-                    )}
-                    {...props}
-                >
-                    <div className="text-sm font-medium leading-none">{title}</div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        {children}
-                    </p>
-                </a>
-            </NavigationMenuLink>
-        </li>
-    );
-});
-ListItem.displayName = "ListItem";

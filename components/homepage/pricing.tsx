@@ -167,40 +167,41 @@ export default function Pricing() {
   const plans = [
     {
       title: "Basic",
-      monthlyPrice: 10,
-      yearlyPrice: 100,
-      description: "Essential features you need to get started",
-      features: ["Example Feature Number 1", "Example Feature Number 2", "Example Feature Number 3"],
-      priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-      priceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+      monthlyPrice: 20,
+      yearlyPrice: 200,
+      description: "For eBay stores with under 500 listings",
+      features: ["Real-Time Sales Tracking", "Low Stock Alerts", "Top-Selling Items Report"],
+      priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_1,
+      priceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_1,
       actionLabel: "Get Started",
     },
     {
-      title: "Pro",
-      monthlyPrice: 25,
-      yearlyPrice: 250,
-      description: "Perfect for owners of small & medium businessess",
-      features: ["Example Feature Number 1", "Example Feature Number 2", "Example Feature Number 3"],
+      title: "Premium",
+      monthlyPrice: 50,
+      yearlyPrice: 500,
+      description: "For eBay stores with under 1000 listings (Includes Basic Plan features)",
+      features: ["Detailed Inventory Forecasting", "Fast-Selling Items Highlight", "Advanced Analytics Dashboard" ],
       actionLabel: "Get Started",
-      priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-      priceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+      priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_2,
+      priceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_2,
       popular: true,
     },
     {
       title: "Enterprise",
-      price: "Custom",
-      description: "Dedicated support and infrastructure to fit your needs",
-      features: ["Example Feature Number 1", "Example Feature Number 2", "Example Feature Number 3", "Super Exclusive Feature"],
-      actionLabel: "Contact Sales",
-      priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-      priceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+      monthlyPrice: 100,
+      yearlyPrice: 1000,
+      description: "For eBay stores with over 1000 listings (Includes Basic + Premium Plan features)",
+      features: ["Automated Restocking Insights", "Competitor Analysis", "Sales Prediction Model", "Priority Support From eBay Experts", "24/7 Customer Service" ],
+      actionLabel: "Get Started",
+      priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_3,
+      priceIdYearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_3,
       exclusive: true,
     },
   ]
 
   return (
     <div>
-      <PricingHeader title="Sample Pricing Plans" subtitle="Use these sample pricing cards in your SAAS" />
+      <PricingHeader title="Choose the Perfect Plan for Smarter Inventory Management" subtitle="Increase sales and never run out of stock again with our plans tailored to your business needs." />
       <PricingSwitch onSwitch={togglePricingPeriod} />
       <section className="flex flex-col sm:flex-row sm:flex-wrap justify-center gap-8 mt-8">
         {plans.map((plan) => {

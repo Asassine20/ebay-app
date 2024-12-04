@@ -1,5 +1,5 @@
 import { AccordionComponent } from "@/components/homepage/accordion-component";
-import BlogSample from "@/components/homepage/blog-samples";
+//import BlogSample from "@/components/homepage/blog-samples";
 import HeroSection from "@/components/homepage/hero-section";
 import MarketingCards from "@/components/homepage/marketing-cards";
 import Pricing from "@/components/homepage/pricing";
@@ -20,7 +20,7 @@ export default function Home() {
         <MarketingCards />
       </div>
       <div className="max-w-[1200px] p-8 mt-[2rem] lg:mt-[6rem] lg:mb-[5rem]">
-        <BlogSample />
+        {/* Add back once you write blogs <BlogSample /> */}
       </div>
       {(config.auth.enabled && config.payments.enabled) && <div>
         <Pricing />

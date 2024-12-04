@@ -7,18 +7,17 @@ import Link from 'next/link'
 const ProjectsData = [
   {
     id: 1,
-    name: 'Nextjs 14',
-    description: 'A framework for React that enables server-side rendering and effortless deployment.',
-    image: 'https://utfs.io/f/a8df6965-e6df-417a-ab0b-b3ad33d701d7-hcfblw.png',
-    imageDark: "https://utfs.io/f/c5588304-c7ff-43f9-b164-3b9c78474b73-rv0oux.png",
-    url: "https://nextjs.org/"
+    name: 'GemTCG',
+    description: '"This tool helped me pinpoint exactly where I was losing money from items being out of stock "',
+    image: 'https://utfs.io/f/8iXWGiUIA2Tmn1yFhDfqDK043j2ZeB7n9EdPbpgJcNxaO8fV',
+    url: "https://www.ebay.com/str/kickznkardzstore"
   },
   {
     id: 2,
-    name: 'TypeScript',
-    description: 'A typed superset of JavaScript that enhances code maintainability and scalability.',
-    image: 'https://utfs.io/f/5b51351d-218b-4931-a296-0a9275030aaf-8myeez.png',
-    url: "https://www.typescriptlang.org/"
+    name: 'GGCardsCo',
+    description: '"I was able to double my sales by focusing on restocking items that were selling fast thanks to this tool"',
+    image: 'https://utfs.io/f/8iXWGiUIA2TmAZx9c102xvl2qIWrkKmyg17Ch0DTAwcYRNV3',
+    url: "https://www.ebay.com/usr/ggcardsco"
   },
   {
     id: 3,
@@ -84,10 +83,10 @@ const SpringAnimatedFeatures = () => {
     <div className="flex flex-col justify-center items-center lg:w-[75%]">
       <div className='flex flex-col mb-[3rem]'>
         <h2 className={`${TITLE_TAILWIND_CLASS} mt-2 font-semibold tracking-tight dark:text-white text-gray-900`}>
-          Nextjs Starter Kit: Built with the best
+          Trusted by eBay Sellers Worldwide
         </h2>
         <p className="mx-auto max-w-[500px] text-gray-600 dark:text-gray-400 text-center mt-2 ">
-          Your customers deserve a product built with the best technologies in our Nextjs Starter Kit
+          Hear how our product has helped eBay stores grow, streamline operations, and achieve success.
         </p>
       </div>
       <div className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

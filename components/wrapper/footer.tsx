@@ -21,11 +21,11 @@ export default function Footer() {
         <footer className="border-t dark:bg-black">
             <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
                 <div className="lg:grid lg:grid-cols-2">
-                    <div
-                        className="border-b   py-8 lg:order-last lg:border-b-0 lg:border-s lg:py-16 lg:ps-16"
-                    >
+                    {/*
+                    <div className="border-b   py-8 lg:order-last lg:border-b-0 lg:border-s lg:py-16 lg:ps-16">
+                        
                         <div className="mt-8 space-y-4 lg:mt-0">
-
+                            
                             <div>
                                 <h3 className="text-2xl font-medium">This is a fake newsletter title</h3>
                                 <p className="mt-4 max-w-lg  ">
@@ -42,9 +42,11 @@ export default function Footer() {
                                     Sign Up
                                 </Button>
                             </form>
+                            
                         </div>
+                        
                     </div>
-
+                    */}
                     <div className="py-8 lg:py-16 lg:pe-16">
 
 
@@ -55,14 +57,20 @@ export default function Footer() {
 
                                 <ul className="mt-6 space-y-4 text-sm">
                                     <li>
-                                        <Link href="https://twitter.com/rasmickyy" target="_blank" className="transition hover:opacity-75"> Twitter </Link>
+                                        <Link href="https://www.linkedin.com/in/andrewsassine/" target="_blank" className="  transition hover:opacity-75"> LinkedIn </Link>
                                     </li>
                                     <li>
-                                        <Link href="https://www.youtube.com/@rasmic" target="_blank" className="  transition hover:opacity-75"> YouTube </Link>
+                                        <Link href="https://www.tiktok.com/@webdevsnest" target="_blank" className="  transition hover:opacity-75"> TikTok </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="https://www.youtube.com/@WebDevsNest" target="_blank" className="  transition hover:opacity-75"> YouTube </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="https://x.com/WebDevsNest" target="_blank" className="transition hover:opacity-75"> Twitter </Link>
                                     </li>
                                 </ul>
                             </div>
-
+{/*
                             <div>
                                 <p className="font-medium ">Helpful Links</p>
 
@@ -75,6 +83,7 @@ export default function Footer() {
                                     </li>
                                 </ul>
                             </div>
+*/}
                         </div>
 
                         <div className="mt-8 border-t   pt-8">
@@ -88,7 +97,7 @@ export default function Footer() {
                                 </li>
                             </ul>
 
-                            <p className="mt-8 text-xs  ">&copy; 2024. SomeCompany LLC. All rights reserved.</p>
+                            <p className="mt-8 text-xs  ">&copy; 2024. GemTCG LLC. All rights reserved.</p>
                         </div>
                     </div>
                 </div>

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { parseStringPromise } from "xml2js";
-
+import { Redis } from "@upstash/redis";
+// Cache results
+const redis = new Redis ({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
+;
 const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
 const authToken = process.env.AUTH_TOKEN;
 
@@ -64,7 +70,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const page = searchParams.get("page") || "1";
   const entriesPerPage = searchParams.get("entriesPerPage") || "200";
+  const cacheKey = `ebay-listings-page-${page}-entries-${entriesPerPage}`;
 
+  // Check Redis for cached data
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) {
+    console.log("Serving data from cache");
+    return NextResponse.json(cachedData);
+  }
   if (!authToken) {
     console.error("Missing eBay auth token");
     return NextResponse.json({ error: "Missing eBay auth token" }, { status: 400 });
@@ -108,7 +121,7 @@ export async function GET(req: NextRequest) {
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
     console.log("Parsed JSON from eBay API:", parsedData);
   
-    const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item;
+    const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
     console.log("Active List:", activeList);
   
     if (!activeList || activeList.length === 0) {
@@ -128,7 +141,6 @@ export async function GET(req: NextRequest) {
         const quantity = item.QuantityAvailable || "0";
         const totalSold = await fetchTransactionData(itemId);
   
-        console.log(`Processing ItemID: ${itemId}, Total Sold: ${totalSold}`);
   
         const variations = (item.Variations?.Variation || []).map((variation: any) => {
           const nameValueList = variation.VariationSpecifics?.NameValueList;
@@ -165,6 +177,8 @@ export async function GET(req: NextRequest) {
     );
   
     console.log("Final Parsed Items:", parsedItems);
+
+    await redis.set(cacheKey, parsedItems, { ex: 86400 });
   
     return NextResponse.json(parsedItems);
   } catch (error: any) {
@@ -172,4 +186,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   
+}
+
+// Additional POST endpoint to clear the cache manually
+export async function POST(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const page = searchParams.get("page") || "1";
+  const entriesPerPage = searchParams.get("entriesPerPage") || "200";
+  const cacheKey = `ebay-listings-page-${page}-entries-${entriesPerPage}`;
+
+  try {
+    await redis.del(cacheKey);
+    return NextResponse.json({ message: "Cache cleared successfully" });
+  } catch (error: any) {
+    console.error("Error clearing cache:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

@@ -79,6 +79,15 @@ export default function InventoryPage() {
     }
   };
 
+  const clearCache = async () => {
+    await fetch(`/api/ebay-listings`, {
+      method: "POST",
+      body: JSON.stringify({ page: 1, entriesPerPage: 200 }), // Adjust parameters as needed
+    });
+    alert("Cache cleared!");
+  };
+  
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>

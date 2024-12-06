@@ -1,19 +1,8 @@
-"use client";
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function Dashboard() {
   return (
     <div className="grid gap-6 px-4 pt-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-      <button
-        onClick={() => {
-          // This endpoint starts the OAuth flow
-          window.location.href = '/api/ebay-connect';
-        }}
-        className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Connect Your eBay Account
-      </button>
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Recent Out of Stock Items</CardTitle>

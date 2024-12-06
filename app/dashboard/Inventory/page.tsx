@@ -1,15 +1,17 @@
 "use client";
-import Link from "next/link";
 
 import React, { useState, useEffect } from "react";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 
 interface Item {
   ItemID: string;
   Title: string;
-  Price: string;
-  Quantity: string;
+  Price: number; // Updated to number
+  Quantity: number; // Updated to number
   Variations: Variation[];
-  TotalSold: number; 
+  TotalSold: number;
   GalleryURL?: string;
 }
 
@@ -57,7 +59,15 @@ export default function InventoryPage() {
         return;
       }
 
-      setItems(data);
+      // Convert string fields to numbers
+      const processedData = data.map((item: any) => ({
+        ...item,
+        Price: parseFloat(item.Price) || 0, // Convert to number
+        Quantity: parseInt(item.Quantity, 10) || 0, // Convert to number
+        TotalSold: parseInt(item.TotalSold, 10) || 0, // Convert to number
+      }));
+
+      setItems(processedData);
       setTotalPages(Math.ceil(4111 / entriesPerPage)); // Adjust based on total entries if known
       setStatus(`Page ${page} loaded successfully.`);
     } catch (error) {
@@ -87,7 +97,78 @@ export default function InventoryPage() {
     });
     alert("Cache cleared!");
   };
-  
+
+  const columns = [
+    {
+      headerName: "Image",
+      field: "GalleryURL",
+      width: 100,
+      cellRenderer: ({ value }: { value: string }) =>
+        value ? (
+          <img
+            src={value}
+            alt="Item"
+            style={{ width: "100px", height: "auto", objectFit: "cover" }}
+          />
+        ) : (
+          "No Image"
+        ),
+    },
+    {
+      headerName: "Title",
+      field: "Title",
+      width: 400,
+      cellRenderer: ({ data }: { data: Item }) => (
+        <a
+          href={`https://www.ebay.com/itm/${data.ItemID}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+        >
+          {data.Title}
+        </a>
+      ),
+    },
+    {
+      headerName: "Price",
+      field: "Price",
+      width: 100,
+      valueGetter: (params: any) => params.data.Price, // Ensure numeric value is retrieved
+      valueFormatter: (params: any) =>
+        typeof params.value === "number"
+          ? `$${params.value.toFixed(2)}`
+          : "$0.00", // Fallback if value is not a number
+    },
+    
+    {
+      headerName: "Quantity",
+      field: "Quantity",
+      width: 100,
+      valueGetter: (params: any) => params.data.Quantity, // Treat as a number
+    },
+    {
+      headerName: "Sold",
+      field: "TotalSold",
+      width: 100,
+      valueGetter: (params: any) => params.data.TotalSold, // Treat as a number
+    },
+    {
+      headerName: "Variations",
+      field: "Variations",
+      width: 150,
+      cellRenderer: ({ data }: { data: Item }) =>
+        data.Variations.length > 0 ? (
+          <a
+            href={`/dashboard/inventory/${data.ItemID}`}
+            className="text-blue-500 hover:underline"
+          >
+            {data.Variations.length} Variations
+          </a>
+        ) : (
+          "None"
+        ),
+    },
+  ];
 
   return (
     <div className="container mx-auto p-4">
@@ -115,69 +196,18 @@ export default function InventoryPage() {
           Next
         </button>
       </div>
-      <table className="table-auto w-full border-collapse border border-gray-300">
-  <thead>
-    <tr className="bg-gray-200">
-      <th className="border border-gray-300 px-4 py-2">Image</th> {/* Image column first */}
-      <th className="border border-gray-300 px-4 py-2">Title</th>
-      <th className="border border-gray-300 px-4 py-2">Price</th>
-      <th className="border border-gray-300 px-4 py-2">Quantity</th>
-      <th className="border border-gray-300 px-4 py-2">Sold</th>
-      <th className="border border-gray-300 px-4 py-2">Variations</th> {/* Variations with link */}
-    </tr>
-  </thead>
-  <tbody>
-    {items.map((item) => (
-      <tr key={item.ItemID}>
-        {/* Image column */}
-        <td className="border border-gray-300 px-4 py-2">
-          {item.GalleryURL ? (
-            <img src={item.GalleryURL} alt={item.Title} className="w-16 h-16 object-cover" />
-          ) : (
-            "No Image"
-          )}
-        </td>
-
-        {/* Title column with link */}
-        <td className="border border-gray-300 px-4 py-2">
-          <a
-            href={`https://www.ebay.com/itm/${item.ItemID}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline"
-          >
-            {item.Title}
-          </a>
-        </td>
-
-        {/* Price */}
-        <td className="border border-gray-300 px-4 py-2">{item.Price}</td>
-
-        {/* Quantity */}
-        <td className="border border-gray-300 px-4 py-2">{item.Quantity}</td>
-
-        {/* Total Sold */}
-        <td className="border border-gray-300 px-4 py-2">{item.TotalSold}</td>
-
-        {/* Variations with link if not None */}
-        <td className="border border-gray-300 px-4 py-2">
-          {item.Variations.length > 0 ? (
-            <Link
-              href={`/dashboard/inventory/${item.ItemID}`}
-              className="text-blue-500 hover:underline"
-            >
-              {item.Variations.length} Variations
-            </Link>
-          ) : (
-            "None"
-          )}
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
-
-
+      <div
+        className="ag-theme-alpine"
+        style={{ height: "800px", width: "100%" }}
+      >
+        <AgGridReact
+          rowData={items}
+          columnDefs={columns}
+          defaultColDef={{ sortable: true, filter: true }}
+          pagination={false}
+          rowHeight={100}
+        />
+      </div>
       <div className="mt-4 text-center">
         <p>
           Page {currentPage} of {totalPages}

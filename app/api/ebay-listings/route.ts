@@ -116,13 +116,10 @@ export async function GET(req: NextRequest) {
     }
   
     const xml = await res.text();
-    console.log("Raw XML Response from eBay API:", xml);
   
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-    console.log("Parsed JSON from eBay API:", parsedData);
   
     const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
-    console.log("Active List:", activeList);
   
     if (!activeList || activeList.length === 0) {
       console.log("No items found in the API response.");
@@ -130,7 +127,6 @@ export async function GET(req: NextRequest) {
     }
     
     const items = Array.isArray(activeList) ? activeList : [activeList];
-    console.log("Processed Items Array:", items);
     
     const parsedItems = await Promise.all(
       items.map(async (item: any) => {
@@ -177,7 +173,6 @@ export async function GET(req: NextRequest) {
       })
     );
   
-    console.log("Final Parsed Items:", parsedItems);
 
     await redis.set(cacheKey, parsedItems, { ex: 86400 });
   

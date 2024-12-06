@@ -8,7 +8,7 @@ export default async function Dashboard() {
       <button
         onClick={() => {
           // This endpoint starts the OAuth flow
-          window.location.href = '/api/ebay/connect';
+          window.location.href = '/api/ebay-connect';
         }}
         className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
       >

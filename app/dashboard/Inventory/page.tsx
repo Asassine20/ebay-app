@@ -8,8 +8,8 @@ import "ag-grid-community/styles/ag-theme-alpine.css";
 interface Item {
   ItemID: string;
   Title: string;
-  Price: number; // Updated to number
-  Quantity: number; // Updated to number
+  Price: number;
+  Quantity: number;
   Variations: Variation[];
   TotalSold: number;
   GalleryURL?: string;
@@ -30,7 +30,7 @@ export default function InventoryPage() {
   const entriesPerPage = 200;
 
   useEffect(() => {
-    fetchListings(currentPage); // Fetch items for the current page whenever it changes
+    fetchListings(currentPage);
   }, [currentPage]);
 
   const fetchListings = async (page: number) => {
@@ -54,21 +54,15 @@ export default function InventoryPage() {
         return;
       }
 
-      if (data.length === 0) {
-        setStatus("No more items available.");
-        return;
-      }
-
-      // Convert string fields to numbers
       const processedData = data.map((item: any) => ({
         ...item,
-        Price: parseFloat(item.Price) || 0, // Convert to number
-        Quantity: parseInt(item.Quantity, 10) || 0, // Convert to number
-        TotalSold: parseInt(item.TotalSold, 10) || 0, // Convert to number
+        Price: parseFloat(item.Price) || 0,
+        Quantity: parseInt(item.Quantity, 10) || 0,
+        TotalSold: parseInt(item.TotalSold, 10) || 0,
       }));
 
       setItems(processedData);
-      setTotalPages(Math.ceil(4111 / entriesPerPage)); // Adjust based on total entries if known
+      setTotalPages(Math.ceil(4111 / entriesPerPage));
       setStatus(`Page ${page} loaded successfully.`);
     } catch (error) {
       console.error("Error fetching listings:", error);
@@ -93,7 +87,7 @@ export default function InventoryPage() {
   const clearCache = async () => {
     await fetch(`/api/ebay-listings`, {
       method: "POST",
-      body: JSON.stringify({ page: 1, entriesPerPage: 200 }), // Adjust parameters as needed
+      body: JSON.stringify({ page: 1, entriesPerPage: 200 }),
     });
     alert("Cache cleared!");
   };
@@ -101,7 +95,7 @@ export default function InventoryPage() {
   const columns = [
     {
       headerName: "Image",
-      field: "GalleryURL",
+      field: "GalleryURL" as keyof Item,
       width: 100,
       cellRenderer: ({ value }: { value: string }) =>
         value ? (
@@ -116,7 +110,7 @@ export default function InventoryPage() {
     },
     {
       headerName: "Title",
-      field: "Title",
+      field: "Title" as keyof Item,
       width: 400,
       cellRenderer: ({ data }: { data: Item }) => (
         <a
@@ -131,30 +125,24 @@ export default function InventoryPage() {
     },
     {
       headerName: "Price",
-      field: "Price",
+      field: "Price" as keyof Item,
       width: 100,
-      valueGetter: (params: any) => params.data.Price, // Ensure numeric value is retrieved
-      valueFormatter: (params: any) =>
-        typeof params.value === "number"
-          ? `$${params.value.toFixed(2)}`
-          : "$0.00", // Fallback if value is not a number
+      valueFormatter: (params: { value: number }) =>
+        `$${params.value.toFixed(2)}`,
     },
-    
     {
       headerName: "Quantity",
-      field: "Quantity",
+      field: "Quantity" as keyof Item,
       width: 100,
-      valueGetter: (params: any) => params.data.Quantity, // Treat as a number
     },
     {
       headerName: "Sold",
-      field: "TotalSold",
+      field: "TotalSold" as keyof Item,
       width: 100,
-      valueGetter: (params: any) => params.data.TotalSold, // Treat as a number
     },
     {
       headerName: "Variations",
-      field: "Variations",
+      field: "Variations" as keyof Item,
       width: 150,
       cellRenderer: ({ data }: { data: Item }) =>
         data.Variations.length > 0 ? (
@@ -200,7 +188,7 @@ export default function InventoryPage() {
         className="ag-theme-alpine"
         style={{ height: "800px", width: "100%" }}
       >
-        <AgGridReact
+        <AgGridReact<Item>
           rowData={items}
           columnDefs={columns}
           defaultColDef={{ sortable: true, filter: true }}

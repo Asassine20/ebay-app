@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
     }
 
     const tokenData = await tokenRes.json();
+    console.log("Access Token:", tokenData.access_token);
+    console.log("Refresh Token:", tokenData.refresh_token);
+    console.log("Token Type:", tokenData.token_type);
+    console.log("Token Expiry (seconds):", tokenData.expires_in);
+    console.log("Refresh Token Expiry (seconds):", tokenData.refresh_token_expires_in);
+
     console.log("Token Data:", tokenData);
 
     // Use an absolute URL for redirection

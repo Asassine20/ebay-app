@@ -9,7 +9,6 @@ export async function GET() {
     client_id: clientName,
     redirect_uri: redirectUri,
     response_type: 'code',
-    // Add all scopes needed for your application
     scope: 'https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/sell.inventory'
   });
 

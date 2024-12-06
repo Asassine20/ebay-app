@@ -18,8 +18,6 @@ model user {
   profile_image_url String?
   user_id           String   @unique
   subscription      String?
-  // Relation to tokens model
-  tokens            tokens[]
 }
 
 model payments {
@@ -72,17 +70,4 @@ model invoices {
   status          String
   email           String
   user_id         String?
-}
-
-model tokens {
-  id               Int       @id @default(autoincrement())
-  created_time     DateTime  @default(now())
-  access_token     String?
-  refresh_token    String?
-  token_type       String?
-  expires_in       Int?
-  refresh_expires_in Int?
-  userId           Int
-
-  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

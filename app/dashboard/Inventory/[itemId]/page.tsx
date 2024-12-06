@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 
 export default function ItemDetailsPage() {
   const params = useParams();
@@ -42,55 +45,55 @@ export default function ItemDetailsPage() {
   if (status === "Loading...") return <p>Loading...</p>;
   if (!item) return <p>{status}</p>;
 
+  // ag-Grid column definitions
+  const columnDefs = [
+    {
+      headerName: "Image",
+      field: "PictureURL",
+      cellRenderer: (params: any) =>
+        params.value ? (
+          <img
+            src={params.value}
+            alt="Variation"
+            style={{ width: "50px", height: "50px", objectFit: "contain" }}
+          />
+        ) : (
+          "N/A"
+        ),
+    },
+    { headerName: "Name", field: "Name" },
+    { headerName: "Price", field: "Price", valueFormatter: (params: any) => `$${params.value}` },
+    { headerName: "Quantity Available", field: "Quantity" },
+    { headerName: "Sales (Last 30 Days)", field: "QuantitySold" },
+  ];
+
+  // ag-Grid row data
+  const rowData = item.Variations.map((variation: any) => ({
+    PictureURL: variation.PictureURL || null,
+    Name: variation.Name || "N/A",
+    Price: variation.Price,
+    Quantity: variation.Quantity,
+    QuantitySold: variation.QuantitySold,
+  }));
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">{item.Title}</h1>
       <p>Price: ${item.overallPrice}</p>
       <p>Quantity: {item.TotalQuantity}</p>
       <h2 className="text-xl font-bold mt-4">Variations:</h2>
-      <table className="table-auto w-full border-collapse border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border border-gray-300 px-4 py-2">Image</th>
-            <th className="border border-gray-300 px-4 py-2">Name</th>
-            <th className="border border-gray-300 px-4 py-2">Price</th>
-            <th className="border border-gray-300 px-4 py-2">Quantity Available</th>
-            <th className="border border-gray-300 px-4 py-2">Sales (Last 30 Days)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {item.Variations && item.Variations.length > 0 ? (
-            item.Variations.map((variation: any, index: number) => (
-              <tr key={index}>
-                <td className="border border-gray-300 px-4 py-2">
-                  {variation.PictureURL ? (
-                    <img
-                      src={variation.PictureURL}
-                      alt={variation.Name || "Variation Image"}
-                      className="w-16 h-16 object-contain"
-                    />
-                  ) : (
-                    "N/A"
-                  )}
-                </td>                
-                <td className="border border-gray-300 px-4 py-2">{variation.Name || ""}</td>
-                <td className="border border-gray-300 px-4 py-2">${variation.Price}</td>
-                <td className="border border-gray-300 px-4 py-2">{variation.Quantity || 0}</td>
-                <td className="border border-gray-300 px-4 py-2">{variation.QuantitySold || 0}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td
-                colSpan={4}
-                className="border border-gray-300 px-4 py-2 text-center text-gray-500"
-              >
-                No variations available.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <div
+        className="ag-theme-alpine"
+        style={{ height: 400, width: "100%" }}
+      >
+        <AgGridReact
+          columnDefs={columnDefs}
+          rowData={rowData}
+          domLayout="autoHeight"
+          pagination={true}
+          paginationPageSize={10}
+        />
+      </div>
     </div>
   );
 }

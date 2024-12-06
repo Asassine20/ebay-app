@@ -74,6 +74,7 @@ async function fetchVariationSales(itemId: string): Promise<Record<string, numbe
 }
 
 // Helper to fetch item details
+// Helper to fetch item details
 async function getItemDetails(itemId: string) {
   const body = `<?xml version="1.0" encoding="utf-8"?>
 <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
@@ -94,48 +95,52 @@ async function getItemDetails(itemId: string) {
   try {
     const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
     const xml = await res.text();
-  
+
     if (!res.ok) {
       throw new Error(`eBay API returned status ${res.status}`);
     }
-  
+
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
     const itemDetails = parsedData.GetItemResponse?.Item;
+    console.log("Item Details:", itemDetails);
 
     if (!itemDetails) {
       throw new Error("Item not found in the response.");
     }
-  
+
     const salesData = await fetchVariationSales(itemDetails.ItemID);
-  
-    const pictures = itemDetails.Variations.Pictures.VariationSpecificPictureSet || [];
-  
-    const variations = (itemDetails.Variations?.Variation || []).map((variation: any) => {
-      const nameValueList = variation.VariationSpecifics?.NameValueList || {};
-      const specifics = Array.isArray(nameValueList)
-        ? nameValueList.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
-        : `${nameValueList.Name}: ${nameValueList.Value}`;
-  
-      const quantity = parseInt(variation.Quantity, 10) || 0;
-      const quantitySold = parseInt(variation.SellingStatus?.QuantitySold, 10) || 0;
-      const availableInventory = quantity - quantitySold;
-  
-      const variationValue = Array.isArray(nameValueList)
-        ? nameValueList.find((specific: any) => specific.Name === "Choose Your Card")?.Value
-        : nameValueList.Value;
-  
-      const picture = pictures.find(
-        (pic: any) => pic.VariationSpecificValue === variationValue
-      );
-      return {
-        Name: variationValue || "N/A",
-        Price: variation.StartPrice?._ || variation.StartPrice || "0.0",
-        Quantity: availableInventory, // Available inventory
-        QuantitySold: salesData[specifics] || 0,
-        PictureURL: picture?.PictureURL || null, // Picture URL
-      };
-    });
-  
+
+    // Safe access to pictures, handle missing pictures gracefully
+    const pictures =
+      itemDetails.Variations?.Pictures?.VariationSpecificPictureSet || [];
+
+      const variations = (itemDetails.Variations?.Variation || []).map((variation: any) => {
+        const nameValueList = variation.VariationSpecifics?.NameValueList || {};
+        const specifics = Array.isArray(nameValueList)
+          ? nameValueList.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
+          : `${nameValueList.Name}: ${nameValueList.Value}`;
+      
+        const quantity = parseInt(variation.Quantity, 10) || 0;
+        const quantitySold = parseInt(variation.SellingStatus?.QuantitySold, 10) || 0;
+        const availableInventory = quantity - quantitySold;
+      
+        const variationValue = Array.isArray(nameValueList)
+          ? nameValueList.find((specific: any) => specific.Name === "Choose Your Card")?.Value
+          : nameValueList.Value;
+      
+        // Attempt to find the picture, handle cases where it's missing
+        const picture = pictures.find((pic: any) => pic.VariationSpecificValue === variationValue);
+      
+        return {
+          Name: variationValue || "N/A",
+          Price: variation.StartPrice?._ || variation.StartPrice || "0.0",
+          Quantity: availableInventory, // Available inventory
+          QuantitySold: salesData[specifics] || 0,
+          PictureURL: picture?.PictureURL || itemDetails.PictureDetails?.PictureURL || "N/A", // Default to item PictureURL
+        };
+      });
+      
+
     return {
       ItemID: itemDetails.ItemID || "N/A",
       Title: itemDetails.Title || "N/A",
@@ -148,7 +153,8 @@ async function getItemDetails(itemId: string) {
     console.error("Error in getItemDetails:", error);
     throw error;
   }
-}  
+}
+
 
 // Main API handler
 export async function GET(req: NextRequest) {

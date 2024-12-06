@@ -140,8 +140,8 @@ export async function GET(req: NextRequest) {
           item.SellingStatus?.CurrentPrice?._ || item.SellingStatus?.CurrentPrice || "0.0";
         const quantity = item.QuantityAvailable || "0";
         const totalSold = await fetchTransactionData(itemId);
-  
-  
+        const galleryURL = item.PictureDetails?.GalleryURL || ""; // Extract GalleryURL
+    
         const variations = (item.Variations?.Variation || []).map((variation: any) => {
           const nameValueList = variation.VariationSpecifics?.NameValueList;
           const specifics = Array.isArray(nameValueList)
@@ -157,20 +157,21 @@ export async function GET(req: NextRequest) {
                 },
               ]
             : [];
-  
+    
           return {
             Price: variation.StartPrice?._ || variation.StartPrice || "0.0",
             Quantity: variation.Quantity || "0",
             Specifics: specifics,
           };
         });
-  
+    
         return {
           ItemID: itemId,
           Title: title,
           Price: price,
           Quantity: quantity,
           TotalSold: totalSold,
+          GalleryURL: galleryURL, // Add GalleryURL to parsed item
           Variations: variations,
         };
       })

@@ -9,7 +9,8 @@ interface Item {
   Price: string;
   Quantity: string;
   Variations: Variation[];
-  TotalSold: number; // Add this property
+  TotalSold: number; 
+  GalleryURL?: string;
 }
 
 interface Variation {
@@ -115,38 +116,68 @@ export default function InventoryPage() {
         </button>
       </div>
       <table className="table-auto w-full border-collapse border border-gray-300">
-      <thead>
-      <tr className="bg-gray-200">
-        <th className="border border-gray-300 px-4 py-2">Item ID</th>
-        <th className="border border-gray-300 px-4 py-2">Title</th>
-        <th className="border border-gray-300 px-4 py-2">Price</th>
-        <th className="border border-gray-300 px-4 py-2">Quantity</th>
-        <th className="border border-gray-300 px-4 py-2">Sold</th>
-        <th className="border border-gray-300 px-4 py-2">Variations</th>
+  <thead>
+    <tr className="bg-gray-200">
+      <th className="border border-gray-300 px-4 py-2">Image</th> {/* Image column first */}
+      <th className="border border-gray-300 px-4 py-2">Title</th>
+      <th className="border border-gray-300 px-4 py-2">Price</th>
+      <th className="border border-gray-300 px-4 py-2">Quantity</th>
+      <th className="border border-gray-300 px-4 py-2">Sold</th>
+      <th className="border border-gray-300 px-4 py-2">Variations</th> {/* Variations with link */}
+    </tr>
+  </thead>
+  <tbody>
+    {items.map((item) => (
+      <tr key={item.ItemID}>
+        {/* Image column */}
+        <td className="border border-gray-300 px-4 py-2">
+          {item.GalleryURL ? (
+            <img src={item.GalleryURL} alt={item.Title} className="w-16 h-16 object-cover" />
+          ) : (
+            "No Image"
+          )}
+        </td>
+
+        {/* Title column with link */}
+        <td className="border border-gray-300 px-4 py-2">
+          <a
+            href={`https://www.ebay.com/itm/${item.ItemID}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            {item.Title}
+          </a>
+        </td>
+
+        {/* Price */}
+        <td className="border border-gray-300 px-4 py-2">{item.Price}</td>
+
+        {/* Quantity */}
+        <td className="border border-gray-300 px-4 py-2">{item.Quantity}</td>
+
+        {/* Total Sold */}
+        <td className="border border-gray-300 px-4 py-2">{item.TotalSold}</td>
+
+        {/* Variations with link if not None */}
+        <td className="border border-gray-300 px-4 py-2">
+          {item.Variations.length > 0 ? (
+            <Link
+              href={`/dashboard/inventory/${item.ItemID}`}
+              className="text-blue-500 hover:underline"
+            >
+              {item.Variations.length} Variations
+            </Link>
+          ) : (
+            "None"
+          )}
+        </td>
       </tr>
-    </thead>
-    <tbody>
-      {items.map((item) => (
-        <tr key={item.ItemID}>
-          <td className="border border-gray-300 px-4 py-2">
-          <Link href={`/dashboard/inventory/${item.ItemID}`} className="text-blue-500 hover:underline">
-  {item.ItemID}
-</Link>
+    ))}
+  </tbody>
+</table>
 
-          </td>
-          <td className="border border-gray-300 px-4 py-2">{item.Title}</td>
-          <td className="border border-gray-300 px-4 py-2">{item.Price}</td>
-          <td className="border border-gray-300 px-4 py-2">{item.Quantity}</td>
-          <td className="border border-gray-300 px-4 py-2">{item.TotalSold}</td>
 
-          <td className="border border-gray-300 px-4 py-2">
-            {item.Variations.length > 0 ? item.Variations.length : "None"}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-
-      </table>
       <div className="mt-4 text-center">
         <p>
           Page {currentPage} of {totalPages}

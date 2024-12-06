@@ -10,7 +10,7 @@ import './globals.css'
 export const metadata: Metadata = {
   metadataBase: new URL("https://starter.rasmic.xyz"),
   title: {
-    default: 'Nextjs Starter Kit',
+    default: 'eBay Analytics Dashboard',
     template: `%s | Nextjs Starter Kit`
   },
   description: 'The Ultimate Nextjs 14 Starter Kit for quickly building your SaaS, giving you time to focus on what really matters',

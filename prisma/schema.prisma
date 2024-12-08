@@ -9,16 +9,18 @@ datasource db {
 }
 
 model user {
-  id                Int      @id @default(autoincrement())
-  created_time      DateTime @default(now())
-  email             String   @unique
+  id                Int              @id @default(autoincrement())
+  created_time      DateTime         @default(now())
+  email             String           @unique
   first_name        String?
   last_name         String?
   gender            String?
   profile_image_url String?
-  user_id           String   @unique
+  user_id           String           @unique
   subscription      String?
+  inventories       inventory[]
 }
+
 
 model payments {
   id               Int      @id @default(autoincrement())
@@ -70,4 +72,30 @@ model invoices {
   status          String
   email           String
   user_id         String?
+}
+
+model inventory {
+  id                  Int              @id @default(autoincrement())
+  created_time        DateTime         @default(now())
+  last_fetched_time   DateTime         @updatedAt
+  item_id             String           @unique
+  title               String
+  price               Float
+  quantity_available  Int
+  total_sold          Int
+  gallery_url         String?
+  user_id             Int
+  user                user             @relation(fields: [user_id], references: [id])
+  variations          inventoryVariation[]
+}
+
+model inventoryVariation {
+  id            Int      @id @default(autoincrement())
+  inventory_id  Int
+  name          String
+  price         Float
+  quantity      Int
+  quantity_sold Int
+  picture_url   String?
+  inventory     inventory @relation(fields: [inventory_id], references: [id])
 }

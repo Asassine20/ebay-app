@@ -1,9 +1,57 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
 
-export default async function Dashboard() {
-  const ebayOAuthUrl =
-    'https://auth.ebay.com/oauth2/authorize?client_id=AndrewSa-Inventor-PRD-774c9724e-68eed72e&response_type=code&redirect_uri=Andrew_Sassine-AndrewSa-Invent-chvtg&scope=https://api.ebay.com/oauth/api_scope%20https://api.ebay.com/oauth/api_scope/sell.marketing.readonly%20https://api.ebay.com/oauth/api_scope/sell.marketing%20https://api.ebay.com/oauth/api_scope/sell.inventory.readonly%20https://api.ebay.com/oauth/api_scope/sell.inventory%20https://api.ebay.com/oauth/api_scope/sell.account.readonly%20https://api.ebay.com/oauth/api_scope/sell.account%20https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly%20https://api.ebay.com/oauth/api_scope/sell.fulfillment%20https://api.ebay.com/oauth/api_scope/sell.analytics.readonly%20https://api.ebay.com/oauth/api_scope/sell.finances%20https://api.ebay.com/oauth/api_scope/sell.payment.dispute%20https://api.ebay.com/oauth/api_scope/commerce.identity.readonly%20https://api.ebay.com/oauth/api_scope/sell.reputation%20https://api.ebay.com/oauth/api_scope/sell.reputation.readonly%20https://api.ebay.com/oauth/api_scope/commerce.notification.subscription%20https://api.ebay.com/oauth/api_scope/commerce.notification.subscription.readonly%20https://api.ebay.com/oauth/api_scope/sell.stores%20https://api.ebay.com/oauth/api_scope/sell.stores.readonly';
+export default function Dashboard() {
+  const ebayOAuthUrl = process.env.NEXT_PUBLIC_EBAY_OAUTH_URL;
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const handleApiCalls = async () => {
+    setIsLoading(true);
+    setStatusMessage('Updating inventory...');
+  
+    try {
+      // Call saveInventory API
+      const inventoryResponse = await fetch('/api/saveInventory');
+      if (!inventoryResponse.ok) {
+        throw new Error('Failed to update inventory');
+      }
+  
+      setStatusMessage('Inventory updated successfully. Fetching item IDs...');
+  
+      // Fetch updated inventory from the database
+      const inventoryDataResponse = await fetch('/api/getInventory'); // A new endpoint to fetch inventory
+      if (!inventoryDataResponse.ok) {
+        throw new Error('Failed to fetch updated inventory');
+      }
+  
+      const inventoryData = await inventoryDataResponse.json();
+      const itemIds = inventoryData.map((item) => item.item_id);
+  
+      if (itemIds.length === 0) {
+        throw new Error('No items found in inventory');
+      }
+  
+      setStatusMessage('Updating variations for each item...');
+  
+      // Call saveVariations API for each item
+      for (const itemId of itemIds) {
+        const variationsResponse = await fetch(`/api/saveVariations?itemId=${itemId}`);
+        if (!variationsResponse.ok) {
+          throw new Error(`Failed to update variations for itemId: ${itemId}`);
+        }
+      }
+  
+      setStatusMessage('Inventory and variations updated successfully.');
+    } catch (error) {
+      console.error(error);
+      setStatusMessage(`Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
 
   return (
     <div
@@ -67,6 +115,23 @@ export default async function Dashboard() {
           </button>
           <p className="text-xs text-muted-foreground mt-2">
             Click the button above to connect your account to eBay.
+          </p>
+        </CardContent>
+      </Card>
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Update Inventory & Variations</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <button
+            onClick={handleApiCalls}
+            disabled={isLoading}
+            className={`px-4 py-2 rounded ${isLoading ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'} text-white`}
+          >
+            {isLoading ? 'Updating...' : 'Update Now'}
+          </button>
+          <p className="text-xs text-muted-foreground mt-2">
+            {statusMessage}
           </p>
         </CardContent>
       </Card>

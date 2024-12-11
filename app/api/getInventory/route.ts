@@ -11,9 +11,8 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(inventory);
-  } catch (error: any) {
-    console.error("Error in getInventory API:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ inventory });
+  } catch (error) {
+    console.error("An error occurred:", (error as Error).message);
   }
 }

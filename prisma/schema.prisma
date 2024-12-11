@@ -85,8 +85,8 @@ model inventory {
   total_sold          Int
   recent_sales        Int              @default(0) // New column for recent sales
   gallery_url         String?
-  user_id             Int
-  user                user             @relation(fields: [user_id], references: [id])
+  user_id             String
+  user                user             @relation(fields: [user_id], references: [user_id])
   variations          inventoryVariation[]
 }
 

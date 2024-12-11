@@ -224,7 +224,7 @@ export async function GET() {
                 quantity_available: quantityAvailable,
                 total_sold: totalSold,
                 gallery_url: galleryUrl,
-                user_id: 1,
+                user_id: 'test_user_123',
               },
             });
             inventoryId = newItem.id;

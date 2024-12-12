@@ -2,60 +2,46 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs"; // Import useAuth from Clerk
 
 export default function Dashboard() {
   const ebayOAuthUrl = process.env.NEXT_PUBLIC_EBAY_OAUTH_URL;
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
+  const { userId } = useAuth(); // Fetch user ID dynamically from Clerk
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const handleApiCalls = async () => {
-    setIsLoading(true);
-    setStatusMessage("Updating inventory...");
+  const handleFetchData = async () => {
+    setLoading(true);
+    setMessage("");
+
+    if (!userId) {
+      setMessage("User not authenticated.");
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Call saveInventory API
-      const inventoryResponse = await fetch("/api/saveInventory");
-      if (!inventoryResponse.ok) {
-        throw new Error("Failed to update inventory");
+      const response = await fetch("/api/itemInsert", {
+        method: "GET",
+        headers: {
+          "user-id": userId, // Use dynamic user ID from Clerk
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        setMessage(`Error: ${error.error}`);
+      } else {
+        const data = await response.json();
+        setMessage("Data fetched and saved successfully!");
       }
-
-      setStatusMessage("Inventory updated successfully. Fetching item IDs...");
-
-      // Fetch updated inventory from the database
-      const inventoryDataResponse = await fetch("/api/getInventory"); // A new endpoint to fetch inventory
-      if (!inventoryDataResponse.ok) {
-        throw new Error("Failed to fetch updated inventory");
-      }
-
-      // Define the type for inventory data
-      type InventoryItem = { item_id: string };
-
-      const inventoryData: InventoryItem[] = await inventoryDataResponse.json();
-      const itemIds = inventoryData.map((item: InventoryItem) => item.item_id);
-
-      if (itemIds.length === 0) {
-        throw new Error("No items found in inventory");
-      }
-
-      setStatusMessage("Updating variations for each item...");
-
-      // Call saveVariations API for each item
-      for (const itemId of itemIds) {
-        const variationsResponse = await fetch(`/api/saveVariations?itemId=${itemId}`);
-        if (!variationsResponse.ok) {
-          throw new Error(`Failed to update variations for itemId: ${itemId}`);
-        }
-      }
-
-      setStatusMessage("Inventory and variations updated successfully.");
-    } catch (error: any) {
-      console.error(error);
-      setStatusMessage(`Error: ${error.message}`);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setMessage("An unexpected error occurred.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
   return (
     <div
       className="grid gap-6 px-4 pt-4"
@@ -71,6 +57,7 @@ export default function Dashboard() {
             These items went out of stock within the last 30 days.
             <br /> Restock soon.
           </p>
+          <p>{userId}</p>
         </CardContent>
       </Card>
       <Card className="w-full">
@@ -124,19 +111,17 @@ export default function Dashboard() {
       </Card>
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Update Inventory & Variations</CardTitle>
+          <CardTitle className="text-sm font-medium">Fetch eBay Data</CardTitle>
         </CardHeader>
         <CardContent>
           <button
-            onClick={handleApiCalls}
-            disabled={isLoading}
-            className={`px-4 py-2 rounded ${
-              isLoading ? "bg-gray-400" : "bg-green-500 hover:bg-green-600"
-            } text-white`}
+            onClick={handleFetchData}
+            className={`px-4 py-2 text-white rounded ${loading ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"}`}
+            disabled={loading}
           >
-            {isLoading ? "Updating..." : "Update Now"}
+            {loading ? "Fetching..." : "Fetch Data"}
           </button>
-          <p className="text-xs text-muted-foreground mt-2">{statusMessage}</p>
+          {message && <p className="text-xs text-muted-foreground mt-2">{message}</p>}
         </CardContent>
       </Card>
     </div>

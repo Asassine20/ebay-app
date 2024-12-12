@@ -36,7 +36,7 @@ async function fetchEbayItems() {
           "X-EBAY-API-SITEID": "0",
           "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
           "X-EBAY-API-CALL-NAME": "GetMyeBaySelling",
-          "X-EBAY-API-IAF-TOKEN": authToken,
+          "X-EBAY-API-IAF-TOKEN": authToken || "", // Fallback to empty string if undefined
           "Content-Type": "text/xml",
         };
   
@@ -92,7 +92,7 @@ async function fetchTransactionData(itemId) {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
     "X-EBAY-API-CALL-NAME": "GetItemTransactions",
-    "X-EBAY-API-IAF-TOKEN": authToken,
+    "X-EBAY-API-IAF-TOKEN": authToken || "", // Fallback to empty string if undefined
     "Content-Type": "text/xml",
   };
 

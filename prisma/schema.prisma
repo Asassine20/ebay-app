@@ -19,6 +19,7 @@ model user {
   user_id           String           @unique
   subscription      String?
   inventories       inventory[]
+
 }
 
 

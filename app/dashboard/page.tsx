@@ -1,14 +1,30 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs"; // Import useAuth from Clerk
 
 export default function Dashboard() {
-  const ebayOAuthUrl = process.env.NEXT_PUBLIC_EBAY_OAUTH_URL;
   const { userId } = useAuth(); // Fetch user ID dynamically from Clerk
   const [loading, setLoading] = useState(false);
+  const [authUrl, setAuthUrl] = useState("");
   const [message, setMessage] = useState("");
+
+  // Fetch the eBay OAuth URL
+  useEffect(() => {
+    const fetchAuthUrl = async () => {
+      try {
+        const response = await fetch("/api/ebay-auth");
+        const data = await response.json();
+        setAuthUrl(data.url);
+      } catch (error) {
+        console.error("Error fetching eBay OAuth URL:", error);
+        setAuthUrl("");
+      }
+    };
+
+    fetchAuthUrl();
+  }, []);
 
   const handleFetchData = async () => {
     setLoading(true);
@@ -42,6 +58,7 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
   return (
     <div
       className="grid gap-6 px-4 pt-4"
@@ -99,10 +116,11 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <button
-            onClick={() => (window.location.href = ebayOAuthUrl || "#")}
+            onClick={() => authUrl && (window.location.href = authUrl)}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            disabled={!authUrl}
           >
-            Sign in with eBay
+            {authUrl ? "Sign in with eBay" : "Loading..."}
           </button>
           <p className="text-xs text-muted-foreground mt-2">
             Click the button above to connect your account to eBay.

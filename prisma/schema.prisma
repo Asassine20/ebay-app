@@ -19,7 +19,7 @@ model user {
   user_id           String           @unique
   subscription      String?
   inventories       inventory[]
-
+  ebay_tokens       ebay_tokens?     @relation("UserEbayTokens") // Relation name only
 }
 
 
@@ -104,3 +104,13 @@ model inventoryVariation {
   @@unique([inventory_id, name]) // Compound unique constraint
 }
 
+model ebay_tokens {
+  id              Int      @id @default(autoincrement())
+  created_time    DateTime @default(now())
+  updated_time    DateTime @updatedAt
+  user_id         Int      @unique
+  access_token    String
+  refresh_token   String
+  expires_at      DateTime
+  user            user     @relation("UserEbayTokens", fields: [user_id], references: [id])
+}

@@ -16,15 +16,21 @@ export default function Dashboard() {
       try {
         const response = await fetch("/api/ebay-auth");
         const data = await response.json();
-        setAuthUrl(data.url);
+        if (data.url) {
+          setAuthUrl(data.url);
+        } else {
+          console.error("eBay OAuth URL not found in response.");
+        }
       } catch (error) {
         console.error("Error fetching eBay OAuth URL:", error);
-        setAuthUrl("");
+      } finally {
+        setLoading(false); // Stop loading after fetch completes
       }
     };
 
     fetchAuthUrl();
   }, []);
+
 
   const handleFetchData = async () => {
     setLoading(true);
@@ -111,22 +117,22 @@ export default function Dashboard() {
         </CardContent>
       </Card>
       <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Connect to eBay</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <button
-            onClick={() => authUrl && (window.location.href = authUrl)}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            disabled={!authUrl}
-          >
-            {authUrl ? "Sign in with eBay" : "Loading..."}
-          </button>
-          <p className="text-xs text-muted-foreground mt-2">
-            Click the button above to connect your account to eBay.
-          </p>
-        </CardContent>
-      </Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Connect to eBay</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <button
+          onClick={() => authUrl && (window.location.href = authUrl)}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          disabled={!authUrl || loading}
+        >
+          {loading ? "Loading..." : "Sign in with eBay"}
+        </button>
+        <p className="text-xs text-muted-foreground mt-2">
+          Click the button above to connect your account to eBay.
+        </p>
+      </CardContent>
+    </Card>
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Fetch eBay Data</CardTitle>

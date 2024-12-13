@@ -8,7 +8,7 @@ export async function POST() {
     const clientSecret = process.env.NEXT_PUBLIC_EBAY_CLIENT_SECRET!;
     
     // Retrieve the refresh token from the database
-    const userId = 'test'; // Replace with authenticated user's ID
+    const userId = 'user_2qB3GH03ns4zXcMU1zXmFfnMKoN'; // Replace with authenticated user's ID
     const tokenData = await prisma.ebay_tokens.findUnique({ where: { user_id: userId } });
 
     if (!tokenData?.refresh_token) {

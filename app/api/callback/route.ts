@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
     // Store tokens in the database
     // Need to change
-    const userId = 'test'; // Replace with authenticated user's ID or derive it from session/context
+    const userId = 'user_2qB3GH03ns4zXcMU1zXmFfnMKoN'; // Replace with authenticated user's ID or derive it from session/context
     await prisma.ebay_tokens.upsert({
       where: { user_id: userId },
       update: {

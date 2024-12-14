@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/nextjs"; 
 
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -10,20 +9,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(true);
   const [authUrl, setAuthUrl] = useState("");
   const [message, setMessage] = useState("");
+
   useEffect(() => {
     const fetchUserId = async () => {
       try {
         const response = await fetch("/api/get-user-id");
-  
+
         if (!response.ok) {
           const errorData = await response.json();
           console.error("Error fetching user ID:", errorData.error || "Unknown error.");
           setError(errorData.error || "Failed to fetch user ID.");
           return;
         }
-  
+
         const data = await response.json();
-        console.log("Fetched user ID:", data);
+        //console.log("Fetched user ID:", data);
         setUserId(data.id); // Set the database ID
       } catch (err) {
         console.error("Error fetching user ID:", err);
@@ -32,10 +32,10 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-  
+
     fetchUserId();
   }, []);
-  
+
   // Fetch the eBay OAuth URL
   useEffect(() => {
     const fetchAuthUrl = async () => {
@@ -57,33 +57,52 @@ export default function Dashboard() {
     fetchAuthUrl();
   }, []);
 
-
   const handleFetchData = async () => {
     if (loading) {
       setMessage("Still loading user data, please wait.");
       return;
     }
-  
+
     if (!userId) {
       setMessage("User not authenticated.");
       return;
     }
-  
+
+    let cursor = 0;
+    let hasMore = true;
+
     try {
       setLoading(true);
-      const response = await fetch("/api/itemInsert", {
-        method: "GET",
-        headers: {
-          "user-id": userId, // Use dynamic user ID
-        },
-      });
-  
-      if (!response.ok) {
-        const error = await response.json();
-        setMessage(`Error: ${error.error}`);
-      } else {
+      setMessage("Starting data fetch...");
+
+      while (hasMore) {
+        const response = await fetch("/api/itemInsert", {
+          method: "GET",
+          headers: {
+            "user-id": userId, // Use dynamic user ID
+            cursor: cursor.toString(), // Send the current cursor value
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          setMessage(`Error: ${error.error}`);
+          console.error("Error fetching batch:", error.error);
+          break;
+        }
+
         const data = await response.json();
-        setMessage("Data fetched and saved successfully!");
+        //console.log(`Batch processed: ${cursor}`, data);
+
+        // Update hasMore and cursor for the next batch
+        hasMore = data.hasMore;
+        cursor = data.nextCursor;
+
+        if (hasMore) {
+          setMessage(`Processed batch ${cursor / 10}. Fetching next batch...`);
+        } else {
+          setMessage("All items processed successfully!");
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -161,7 +180,7 @@ export default function Dashboard() {
         </p>
       </CardContent>
     </Card>
-      <Card className="w-full">
+    <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Fetch eBay Data</CardTitle>
         </CardHeader>

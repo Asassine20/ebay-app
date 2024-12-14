@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/nextjs"; // Import useAuth from Clerk
+import { useAuth } from "@clerk/nextjs"; 
 
 export default function Dashboard() {
   const { userId } = useAuth(); // Fetch user ID dynamically from Clerk

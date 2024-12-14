@@ -143,55 +143,73 @@ async function fetchTransactionData(itemId: string): Promise<{ totalSold: number
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const userId = req.headers.get("user-id");
-  if (!userId) {
-    return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
-  }
-
-  try {
-    const items = await fetchEbayItems();
-
-    for (const item of items) {
-      try {
-        const { totalSold, recentSales } = await fetchTransactionData(item.ItemID);
-
-        // Handle CurrentPrice safely
-        const price = typeof item.SellingStatus?.CurrentPrice === "object" 
-          ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0") 
-          : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
-        const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
-
-        // Insert or update item in the database
-        await prisma.inventory.upsert({
-          where: { item_id: item.ItemID },
-          update: {
-            title: item.Title,
-            price,
-            quantity_available: quantityAvailable,
-            total_sold: totalSold,
-            recent_sales: recentSales,
-            gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-            user_id: userId,
-          },
-          create: {
-            item_id: item.ItemID,
-            title: item.Title,
-            price,
-            quantity_available: quantityAvailable,
-            total_sold: totalSold,
-            recent_sales: recentSales,
-            gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-            user_id: userId,
-          },
-        });
-      } catch (itemError) {
-        console.warn(`Skipping item ${item.ItemID} due to error:`, (itemError as Error).message);
-      }
+    const userId = req.headers.get("user-id");
+  
+    if (!userId) {
+      return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
     }
-
-    return NextResponse.json({ message: `Items saved successfully, total processed: ${items.length}.` });
-  } catch (error) {
-    console.error("Error in GET handler:", (error as Error).message);
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  
+    try {
+      // Fetch the user from the database
+      console.log("Headers userId:", userId);
+  
+      const dbUser = await prisma.user.findUnique({
+        where: { id: parseInt(userId, 10) },
+      });
+  
+      console.log("Fetched dbUser:", dbUser);
+  
+      if (!dbUser) {
+        console.error(`No user found for userId: ${userId}`);
+        return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
+      }
+  
+      const items = await fetchEbayItems();
+  
+      for (const item of items) {
+        try {
+          const { totalSold, recentSales } = await fetchTransactionData(item.ItemID);
+  
+          // Handle CurrentPrice safely
+          const price =
+            typeof item.SellingStatus?.CurrentPrice === "object"
+              ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
+              : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
+          const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
+  
+          // Insert or update item in the database
+          await prisma.inventory.upsert({
+            where: { item_id: item.ItemID },
+            update: {
+              title: item.Title,
+              price,
+              quantity_available: quantityAvailable,
+              total_sold: totalSold,
+              recent_sales: recentSales,
+              gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+              user_id: dbUser.user_id, // Use user_id (string) from the user table
+            },
+            create: {
+              item_id: item.ItemID,
+              title: item.Title,
+              price,
+              quantity_available: quantityAvailable,
+              total_sold: totalSold,
+              recent_sales: recentSales,
+              gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+              user_id: dbUser.user_id, // Use user_id (string) from the user table
+            },
+          });
+          
+        } catch (itemError) {
+          console.warn(`Skipping item ${item.ItemID} due to error:`, (itemError as Error).message);
+        }
+      }
+  
+      return NextResponse.json({ message: `Items saved successfully, total processed: ${items.length}.` });
+    } catch (error) {
+      console.error("Error in GET handler:", (error as Error).message);
+      return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    }
   }
-}
+  

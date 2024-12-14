@@ -14,14 +14,16 @@ export default function Dashboard() {
     const fetchUserId = async () => {
       try {
         const response = await fetch("/api/get-user-id");
-
+  
         if (!response.ok) {
           const errorData = await response.json();
+          console.error("Error fetching user ID:", errorData.error || "Unknown error.");
           setError(errorData.error || "Failed to fetch user ID.");
           return;
         }
-
+  
         const data = await response.json();
+        console.log("Fetched user ID:", data);
         setUserId(data.id); // Set the database ID
       } catch (err) {
         console.error("Error fetching user ID:", err);
@@ -30,9 +32,10 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-
+  
     fetchUserId();
   }, []);
+  
   // Fetch the eBay OAuth URL
   useEffect(() => {
     const fetchAuthUrl = async () => {
@@ -56,23 +59,25 @@ export default function Dashboard() {
 
 
   const handleFetchData = async () => {
-    setLoading(true);
-    setMessage("");
-
-    if (!userId) {
-      setMessage("User not authenticated.");
-      setLoading(false);
+    if (loading) {
+      setMessage("Still loading user data, please wait.");
       return;
     }
-
+  
+    if (!userId) {
+      setMessage("User not authenticated.");
+      return;
+    }
+  
     try {
+      setLoading(true);
       const response = await fetch("/api/itemInsert", {
         method: "GET",
         headers: {
-          "user-id": userId, // Use dynamic user ID from Clerk
+          "user-id": userId, // Use dynamic user ID
         },
       });
-
+  
       if (!response.ok) {
         const error = await response.json();
         setMessage(`Error: ${error.error}`);
@@ -87,7 +92,7 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
-
+  
   return (
     <div
       className="grid gap-6 px-4 pt-4"

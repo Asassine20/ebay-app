@@ -1,39 +1,45 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Import your Prisma instance
+import { prisma } from "@/lib/prisma";
 
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const nextRequest = new NextRequest(request);
-    const { userId } = getAuth(nextRequest); // Clerk's userId
+    // Fetch the userId from Clerk
+    const { userId: clerkUserId } = getAuth(req);
 
-    if (!userId) {
+    if (!clerkUserId) {
+      console.error("Failed to retrieve userId from Clerk.");
       return NextResponse.json(
         { error: "User is not authenticated." },
         { status: 401 }
       );
     }
 
-    // Query the database to find the corresponding row
+    console.log("Clerk userId retrieved:", clerkUserId);
+
+    // Query the database to find the corresponding user
     const user = await prisma.user.findUnique({
-      where: { user_id: userId },
+      where: { user_id: clerkUserId },
     });
 
+    console.log("Prisma query input user_id:", clerkUserId);
+    console.log("Prisma query result:", user);
+
     if (!user) {
+      console.error("No user found in the database for user_id:", clerkUserId);
       return NextResponse.json(
         { error: "User not found in the database." },
         { status: 404 }
       );
     }
 
-    // Return the database ID
+    // Return the database ID of the user
     return NextResponse.json({ id: user.id });
   } catch (error) {
     console.error("Error fetching user ID from the database:", error);
-    return NextResponse.json(
-      { error: "An unexpected error occurred." },
-      { status: 500 }
-    );
+
+    const errorMessage =
+      error instanceof Error ? error.message : "An unexpected error occurred.";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

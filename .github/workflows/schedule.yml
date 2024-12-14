@@ -1,0 +1,15 @@
+name: Scheduled Item Insert
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  # The cron syntax above runs at 05:00 UTC every day.
+  # Format: * * * * *
+  # Minute Hour Day-of-month Month Day-of-week
+
+jobs:
+  run-iteminsert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke itemInsert API
+        run: curl -X GET "https://ebay-app-drab.vercel.app/api/itemInsert"

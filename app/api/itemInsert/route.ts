@@ -251,6 +251,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           console.log(`Item ${item.ItemID} saved successfully for user.user_id: ${dbUser.user_id}`);
         } catch (itemError) {
           console.warn(`Skipping item ${item.ItemID} due to error:`, (itemError as Error).message);
+          continue; // skip to next item
         }
       }
   

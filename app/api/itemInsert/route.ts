@@ -1,10 +1,11 @@
 import { NextResponse, NextRequest } from "next/server";
 import { parseStringPromise } from "xml2js";
 import { PrismaClient } from "@prisma/client";
+import refreshToken from "@/lib/refresh-ebay-token";
+
 
 const prisma = new PrismaClient();
 const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
-const authToken = process.env.AUTH_TOKEN;
 
 // Type for eBay item
 interface EbayItem {
@@ -20,70 +21,82 @@ interface EbayItem {
   };
 }
 
-async function fetchEbayItems(): Promise<EbayItem[]> {
-  const MAX_ITEMS = 5000;
-  const ITEMS_PER_PAGE = 200;
-  const allItems: EbayItem[] = [];
-
-  try {
-    let currentPage = 1;
-    let totalFetched = 0;
-
-    while (totalFetched < MAX_ITEMS) {
-      const body = `<?xml version="1.0" encoding="utf-8"?>
-<GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-    <RequesterCredentials>
-        <eBayAuthToken>${authToken}</eBayAuthToken>
-    </RequesterCredentials>
-    <ErrorLanguage>en_US</ErrorLanguage>
-    <WarningLevel>High</WarningLevel>
-    <ActiveList>
-        <Sort>TimeLeft</Sort>
-        <Pagination>
-            <EntriesPerPage>${ITEMS_PER_PAGE}</EntriesPerPage>
-            <PageNumber>${currentPage}</PageNumber>
-        </Pagination>
-    </ActiveList>
-</GetMyeBaySellingRequest>`;
-
-      const headers: HeadersInit = {
-        "X-EBAY-API-SITEID": "0",
-        "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-        "X-EBAY-API-CALL-NAME": "GetMyeBaySelling",
-        "X-EBAY-API-IAF-TOKEN": authToken || "", // Fallback to empty string if undefined
-        "Content-Type": "text/xml",
-      };
-
-      const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
-      const xml = await res.text();
-
-      if (!res.ok) {
-        throw new Error(`Error fetching eBay items: ${res.status}`);
+async function fetchEbayItems(accessToken: string): Promise<EbayItem[]> {
+    const MAX_ITEMS = 5000;
+    const ITEMS_PER_PAGE = 200;
+    const allItems: EbayItem[] = [];
+  
+    try {
+      let currentPage = 1;
+      let totalFetched = 0;
+  
+      console.log("Starting eBay fetch with accessToken:", accessToken);
+  
+      while (totalFetched < MAX_ITEMS) {
+        const body = `<?xml version="1.0" encoding="utf-8"?>
+  <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+      <RequesterCredentials>
+          <eBayAuthToken>${accessToken}</eBayAuthToken>
+      </RequesterCredentials>
+      <ErrorLanguage>en_US</ErrorLanguage>
+      <WarningLevel>High</WarningLevel>
+      <ActiveList>
+          <Sort>TimeLeft</Sort>
+          <Pagination>
+              <EntriesPerPage>${ITEMS_PER_PAGE}</EntriesPerPage>
+              <PageNumber>${currentPage}</PageNumber>
+          </Pagination>
+      </ActiveList>
+  </GetMyeBaySellingRequest>`;
+  
+        const headers: HeadersInit = {
+          "X-EBAY-API-SITEID": "0",
+          "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+          "X-EBAY-API-CALL-NAME": "GetMyeBaySelling",
+          "Content-Type": "text/xml",
+        };
+  
+        console.log(`Fetching page ${currentPage} of eBay items...`);
+        console.log("Request Headers:", headers);
+        console.log("Request Body:", body);
+  
+        const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+        const xml = await res.text();
+  
+        if (!res.ok) {
+          console.error(`Error fetching eBay items (status: ${res.status}):`, xml);
+          throw new Error(`Error fetching eBay items: ${res.status}`);
+        }
+  
+        console.log(`eBay API Response XML for page ${currentPage}:`, xml);
+  
+        const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+  
+        const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
+        const items = Array.isArray(activeList) ? activeList : [activeList];
+  
+        console.log(`Fetched ${items.length} items on page ${currentPage}`);
+        allItems.push(...items);
+        totalFetched += items.length;
+  
+        if (items.length < ITEMS_PER_PAGE) {
+          console.log("Reached end of available items.");
+          break;
+        }
+  
+        currentPage++;
       }
-
-      const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-      const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
-
-      const items = Array.isArray(activeList) ? activeList : [activeList];
-      allItems.push(...items);
-      totalFetched += items.length;
-
-      if (items.length < ITEMS_PER_PAGE) {
-        // If fewer than ITEMS_PER_PAGE items are returned, we reached the end
-        break;
-      }
-
-      currentPage++;
+  
+      console.log("Total items fetched:", allItems.length);
+      return allItems.slice(0, MAX_ITEMS);
+    } catch (error) {
+      console.error("Error in fetchEbayItems:", (error as Error).message);
+      throw error;
     }
-
-    return allItems.slice(0, MAX_ITEMS); // Enforce the MAX_ITEMS limit
-  } catch (error) {
-    console.error("Error in fetchEbayItems:", (error as Error).message);
-    throw error;
   }
-}
+  
 
-async function fetchTransactionData(itemId: string): Promise<{ totalSold: number; recentSales: number }> {
+async function fetchTransactionData(itemId: string, authToken: string): Promise<{ totalSold: number; recentSales: number }> {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - 30);
@@ -106,16 +119,16 @@ async function fetchTransactionData(itemId: string): Promise<{ totalSold: number
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
     "X-EBAY-API-CALL-NAME": "GetItemTransactions",
-    "X-EBAY-API-IAF-TOKEN": authToken || "", // Fallback to empty string if undefined
     "Content-Type": "text/xml",
   };
 
   try {
+    console.log(`Fetching transactions for ItemID: ${itemId}`);
     const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
     const xml = await res.text();
 
     if (!res.ok) {
-      console.error(`Error fetching transactions for ItemID ${itemId}`);
+      console.error(`Error fetching transactions for ItemID ${itemId}: ${res.status}`);
       return { totalSold: 0, recentSales: 0 };
     }
 
@@ -135,6 +148,7 @@ async function fetchTransactionData(itemId: string): Promise<{ totalSold: number
 
     const totalSold = parseInt(parsedData.GetItemTransactionsResponse?.Item?.SellingStatus?.QuantitySold || "0", 10);
 
+    console.log(`Total sold: ${totalSold}, Recent sales: ${recentSales} for ItemID: ${itemId}`);
     return { totalSold, recentSales };
   } catch (error) {
     console.error(`Error fetching transactions for ItemID ${itemId}:`, (error as Error).message);
@@ -146,36 +160,69 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const userId = req.headers.get("user-id");
   
     if (!userId) {
+      console.error("Missing userId in request headers");
       return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
     }
   
     try {
-      // Fetch the user from the database
-      console.log("Headers userId:", userId);
+      console.log(`Headers userId: ${userId}`);
   
+      // Fetch the user from the database
       const dbUser = await prisma.user.findUnique({
         where: { id: parseInt(userId, 10) },
       });
-  
-      console.log("Fetched dbUser:", dbUser);
   
       if (!dbUser) {
         console.error(`No user found for userId: ${userId}`);
         return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
       }
   
-      const items = await fetchEbayItems();
+      // Fetch the user's eBay token
+      let ebayToken = await prisma.ebay_tokens.findUnique({
+        where: { user_id: dbUser.id },
+      });
+  
+      if (!ebayToken) {
+        console.error(`No eBay token found for userId: ${userId}`);
+        return NextResponse.json({ error: "eBay token not found for user" }, { status: 400 });
+      }
+  
+      // Check if token is expired or invalid
+      const now = new Date();
+      if (!ebayToken.access_token || ebayToken.expires_at <= now) {
+        console.log("Access token expired or missing. Refreshing token...");
+        
+        try {
+          const refreshedToken = await refreshToken(dbUser.id);
+          ebayToken = {
+            ...ebayToken,
+            access_token: refreshedToken.access_token,
+            expires_at: refreshedToken.expires_at,
+          };
+          console.log("Token refreshed successfully");
+        } catch (refreshError) {
+          console.error("Failed to refresh token:", (refreshError as Error).message);
+          return NextResponse.json({ error: "Failed to refresh token" }, { status: 500 });
+        }
+      }
+  
+      const accessToken = ebayToken.access_token;
+  
+      // Fetch eBay items using the access token
+      const items = await fetchEbayItems(accessToken);
+      console.log(`Total items fetched: ${items.length}`);
   
       for (const item of items) {
         try {
-          const { totalSold, recentSales } = await fetchTransactionData(item.ItemID);
+          const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, accessToken);
   
-          // Handle CurrentPrice safely
           const price =
             typeof item.SellingStatus?.CurrentPrice === "object"
               ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
               : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
           const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
+  
+          console.log(`Processing item: ${item.ItemID} (Title: ${item.Title})`);
   
           // Insert or update item in the database
           await prisma.inventory.upsert({
@@ -187,7 +234,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
               total_sold: totalSold,
               recent_sales: recentSales,
               gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id, // Use user_id (string) from the user table
+              user_id: dbUser.user_id,
             },
             create: {
               item_id: item.ItemID,
@@ -197,10 +244,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
               total_sold: totalSold,
               recent_sales: recentSales,
               gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id, // Use user_id (string) from the user table
+              user_id: dbUser.user_id,
             },
           });
-          
+  
+          console.log(`Item ${item.ItemID} saved successfully for user.user_id: ${dbUser.user_id}`);
         } catch (itemError) {
           console.warn(`Skipping item ${item.ItemID} due to error:`, (itemError as Error).message);
         }

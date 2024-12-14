@@ -7,9 +7,40 @@ export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [totalEntries, setTotalEntries] = useState<number | null>(null);
+
   const [authUrl, setAuthUrl] = useState("");
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (!userId) return;
 
+    const fetchTotalEntries = async () => {
+      try {
+        const response = await fetch("/api/getTotalListings", {
+          method: "GET",
+          headers: { "user-id": userId },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Error fetching total entries:", errorData.error || "Unknown error.");
+          setError(errorData.error || "Failed to fetch total entries.");
+          return;
+        }
+
+        const data = await response.json();
+        //console.log("Total entries:", data.totalEntries);
+        setTotalEntries(data.totalEntries);
+      } catch (err) {
+        console.error("Error fetching total entries:", err);
+        setError("An unexpected error occurred.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTotalEntries();
+  }, [userId]);
   useEffect(() => {
     const fetchUserId = async () => {
       try {
@@ -99,7 +130,7 @@ export default function Dashboard() {
         cursor = data.nextCursor;
 
         if (hasMore) {
-          setMessage(`Processed batch ${cursor / 10}. Fetching next batch...`);
+          setMessage(`Processed batch ${cursor}. Fetching next batch...`);
         } else {
           setMessage("All items processed successfully!");
         }
@@ -208,6 +239,23 @@ export default function Dashboard() {
               <p className="text-lg">{userId}</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Active Listings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-2xl font-bold">Loading...</div>
+          ) : error ? (
+            <div className="text-red-500">{error}</div>
+          ) : (
+            <div className="text-2xl font-bold">{totalEntries ?? "N/A"}</div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Total number of active eBay listings in your account.
+          </p>
         </CardContent>
       </Card>
     </div>

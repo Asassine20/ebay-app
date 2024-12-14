@@ -15,15 +15,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log("Clerk userId retrieved:", clerkUserId);
+    //console.log("Clerk userId retrieved:", clerkUserId);
 
     // Query the database to find the corresponding user
     const user = await prisma.user.findUnique({
       where: { user_id: clerkUserId },
     });
 
-    console.log("Prisma query input user_id:", clerkUserId);
-    console.log("Prisma query result:", user);
+    //console.log("Prisma query input user_id:", clerkUserId);
+    //console.log("Prisma query result:", user);
 
     if (!user) {
       console.error("No user found in the database for user_id:", clerkUserId);

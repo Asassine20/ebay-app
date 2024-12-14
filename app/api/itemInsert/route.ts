@@ -22,13 +22,16 @@ interface EbayItem {
   };
 }
 
-async function fetchEbayItems(accessToken: string, cursor: number, batchSize: number): Promise<EbayItem[]> {
+async function fetchEbayItems(
+    accessToken: string,
+    cursor: number,
+    batchSize: number
+  ): Promise<{ items: EbayItem[]; totalPages: number; totalEntries: number }> {
     const allItems: EbayItem[] = [];
-    const pageNumber = cursor + 1; // Ensure page starts at 1
-
+    const pageNumber = cursor + 1; // eBay PageNumber starts at 1
+  
     try {
-        //console.log(`Fetching page ${pageNumber} with ${batchSize} items per page...`);
-
+      //console.log(`Fetching page ${pageNumber} with ${batchSize} items per page...`);
   
       const body = `<?xml version="1.0" encoding="utf-8"?>
       <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
@@ -53,8 +56,6 @@ async function fetchEbayItems(accessToken: string, cursor: number, batchSize: nu
         "Content-Type": "text/xml",
       };
   
-      //console.log(`Fetching page ${cursor} with ${batchSize} items per page...`);
-  
       const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
       const xml = await res.text();
   
@@ -63,21 +64,25 @@ async function fetchEbayItems(accessToken: string, cursor: number, batchSize: nu
         throw new Error(`Error fetching eBay items: ${res.status}`);
       }
   
-      //console.log(`eBay API Response XML for page ${pageNumber}:`, xml);
-  
       const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+  
       const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
       const items = Array.isArray(activeList) ? activeList : [activeList];
   
-      //console.log(`Fetched ${items.length} items on page ${pageNumber}`);
+      const totalPages = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfPages || "0", 10);
+      const totalEntries = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfEntries || "0", 10);
+  
+      //console.log(`Fetched ${items.length} items on page ${pageNumber}. Total Pages: ${totalPages}, Total Entries: ${totalEntries}`);
+  
       allItems.push(...items);
   
-      return allItems;
+      return { items: allItems, totalPages, totalEntries };
     } catch (error) {
       console.error("Error in fetchEbayItems:", (error as Error).message);
       throw error;
     }
   }
+  
   
   
 
@@ -143,74 +148,61 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
     const userId = req.headers.get("user-id");
-    const cursor = parseInt(req.headers.get("cursor") || "0", 10); // Track progress with a cursor (default 0)
-
+    const cursor = parseInt(req.headers.get("cursor") || "0", 10); // Default cursor is 0
+  
     if (!userId) {
-      console.error("Missing userId in request headers");
       return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
     }
   
     try {
-      //console.log(`Headers userId: ${userId}`);
-  
-      // Fetch the user from the database
-      const dbUser = await prisma.user.findUnique({
-        where: { id: parseInt(userId, 10) },
-      });
-  
+      const dbUser = await prisma.user.findUnique({ where: { id: parseInt(userId, 10) } });
       if (!dbUser) {
-        console.error(`No user found for userId: ${userId}`);
         return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
       }
   
-      // Fetch the user's eBay token
-      let ebayToken = await prisma.ebay_tokens.findUnique({
-        where: { user_id: dbUser.id },
-      });
+      let ebayToken = await prisma.ebay_tokens.findUnique({ where: { user_id: dbUser.id } });
+      if (!ebayToken || !ebayToken.access_token || ebayToken.expires_at <= new Date()) {
+        const refreshedToken = await refreshToken(dbUser.id);
   
-      if (!ebayToken) {
-        console.error(`No eBay token found for userId: ${userId}`);
-        return NextResponse.json({ error: "eBay token not found for user" }, { status: 400 });
-      }
-  
-      // Check if token is expired or invalid
-      const now = new Date();
-      if (!ebayToken.access_token || ebayToken.expires_at <= now) {
-        //console.log("Access token expired or missing. Refreshing token...");
-        
-        try {
-          const refreshedToken = await refreshToken(dbUser.id);
+        if (ebayToken) {
+          // Update only the necessary fields
           ebayToken = {
             ...ebayToken,
             access_token: refreshedToken.access_token,
             expires_at: refreshedToken.expires_at,
           };
-          //console.log("Token refreshed successfully");
-        } catch (refreshError) {
-          console.error("Failed to refresh token:", (refreshError as Error).message);
-          return NextResponse.json({ error: "Failed to refresh token" }, { status: 500 });
+        } else {
+          // Create a new ebayToken-like object if it doesn't exist
+          ebayToken = {
+            id: 0, // Placeholder value, adjust as needed
+            user_id: dbUser.id,
+            created_time: new Date(),
+            updated_time: new Date(),
+            access_token: refreshedToken.access_token,
+            refresh_token: "", // Default or placeholder value
+            expires_at: refreshedToken.expires_at,
+          };
         }
       }
   
-      const accessToken = ebayToken.access_token;
+      const { items, totalPages, totalEntries } = await fetchEbayItems(
+        ebayToken.access_token,
+        cursor,
+        ITEMS_PER_BATCH
+      );
   
-      // Fetch eBay items using the access token
-      const items = await fetchEbayItems(ebayToken.access_token, cursor, ITEMS_PER_BATCH);
-      //console.log(`Total items fetched: ${items.length}`);
+      // Debugging: Log total items, pages, and entries
+      //console.log(`Fetched ${items.length} items on cursor ${cursor}. Total Pages: ${totalPages}, Total Entries: ${totalEntries}`);
   
       for (const item of items) {
         try {
-          const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, accessToken);
-  
+          const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken.access_token);
           const price =
             typeof item.SellingStatus?.CurrentPrice === "object"
               ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
               : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
           const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
   
-         //console.log(`Processing item: ${item.ItemID} (Title: ${item.Title})`);
-  
-          // Insert or update item in the database
           await prisma.inventory.upsert({
             where: { item_id: item.ItemID },
             update: {
@@ -220,7 +212,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
               total_sold: totalSold,
               recent_sales: recentSales,
               gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id,
+              user_id: dbUser.user_id, // Ensure dbUser.id is used as it's a number
             },
             create: {
               item_id: item.ItemID,
@@ -230,26 +222,43 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
               total_sold: totalSold,
               recent_sales: recentSales,
               gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id,
+              user_id: dbUser.user_id, // Ensure dbUser.id is used as it's a number
             },
           });
-  
-          //console.log(`Item ${item.ItemID} saved successfully for user.user_id: ${dbUser.user_id}`);
         } catch (itemError) {
-          console.warn(`Skipping item ${item.ItemID} due to error:`, (itemError as Error).message);
-          continue; // skip to next item
+          if (itemError instanceof Error) {
+            console.warn(`Skipping item ${item.ItemID} due to error:`, itemError.message);
+          } else {
+            console.warn(`Skipping item ${item.ItemID} due to an unknown error.`);
+          }
         }
       }
-      const hasMore = items.length === ITEMS_PER_BATCH;
-
+  
+      const hasMore = cursor + 1 < totalPages;
+  
+      {/* Debugging: Log whether more items are expected
+      console.log({
+        message: `Batch processed successfully`,
+        cursor,
+        itemsInBatch: items.length,
+        totalPages,
+        totalEntries,
+        hasMore,
+      });
+    */}
       return NextResponse.json({
         message: "Batch processed successfully",
         hasMore,
-        nextCursor: hasMore ? cursor + ITEMS_PER_BATCH : null,
+        nextCursor: hasMore ? cursor + 1 : null,
       });
-        } catch (error) {
-      console.error("Error in GET handler:", (error as Error).message);
-      return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error in GET handler:", error.message);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      } else {
+        console.error("Unexpected error in GET handler:", error);
+        return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
+      }
     }
   }
   

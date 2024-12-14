@@ -5,11 +5,34 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs"; 
 
 export default function Dashboard() {
-  const { userId } = useAuth(); // Fetch user ID dynamically from Clerk
-  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [authUrl, setAuthUrl] = useState("");
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const response = await fetch("/api/get-user-id");
 
+        if (!response.ok) {
+          const errorData = await response.json();
+          setError(errorData.error || "Failed to fetch user ID.");
+          return;
+        }
+
+        const data = await response.json();
+        setUserId(data.id); // Set the database ID
+      } catch (err) {
+        console.error("Error fetching user ID:", err);
+        setError("An unexpected error occurred.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserId();
+  }, []);
   // Fetch the eBay OAuth URL
   useEffect(() => {
     const fetchAuthUrl = async () => {
@@ -146,6 +169,21 @@ export default function Dashboard() {
             {loading ? "Fetching..." : "Fetch Data"}
           </button>
           {message && <p className="text-xs text-muted-foreground mt-2">{message}</p>}
+        </CardContent>
+      </Card>
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">User Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading && <p>Loading...</p>}
+          {error && <p className="text-red-500">{error}</p>}
+          {userId !== null && (
+            <div>
+              <p className="text-2xl font-bold">User ID:</p>
+              <p className="text-lg">{userId}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

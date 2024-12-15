@@ -12,4 +12,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Invoke itemInsert API
-        run: curl -X GET "https://ebay-app-drab.vercel.app/api/itemInsert"
+        run: curl -X GET "https://ebay-app-drab.vercel.app/api/itemInsertAll"

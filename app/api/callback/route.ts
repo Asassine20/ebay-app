@@ -87,7 +87,10 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({ message: "Tokens saved successfully." });
+    //console.log("Tokens saved successfully.");
+
+    // Redirect to the dashboard after saving tokens
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (error: any) {
     console.error("Error fetching tokens:", error.response?.data || error.message);
     return NextResponse.json({ error: "Failed to fetch tokens." }, { status: 500 });

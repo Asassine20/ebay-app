@@ -70,3 +70,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+.skeleton-loader {
+  background: linear-gradient(90deg, #e0e0e0 25%, #f5f5f5 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-animation 1.5s infinite ease-in-out;
+  border-radius: 4px;
+}
+
+@keyframes skeleton-animation {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

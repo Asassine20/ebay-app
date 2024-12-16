@@ -8,9 +8,34 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [totalEntries, setTotalEntries] = useState<number | null>(null);
-
   const [authUrl, setAuthUrl] = useState("");
-  const [message, setMessage] = useState("");
+  const [hasEbayToken, setHasEbayToken] = useState<boolean>(false); // Track if the user has an eBay token
+
+  // Fetch the user ID
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const response = await fetch("/api/get-user-id");
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Error fetching user ID:", errorData.error || "Unknown error.");
+          setError(errorData.error || "Failed to fetch user ID.");
+          return;
+        }
+        const data = await response.json();
+        setUserId(data.id); // Set the database ID
+      } catch (err) {
+        console.error("Error fetching user ID:", err);
+        setError("An unexpected error occurred.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserId();
+  }, []);
+
+  // Fetch total active listings for the user
   useEffect(() => {
     if (!userId) return;
 
@@ -29,7 +54,6 @@ export default function Dashboard() {
         }
 
         const data = await response.json();
-        //console.log("Total entries:", data.totalEntries);
         setTotalEntries(data.totalEntries);
       } catch (err) {
         console.error("Error fetching total entries:", err);
@@ -40,34 +64,37 @@ export default function Dashboard() {
     };
 
     fetchTotalEntries();
-  }, [userId]);
+  }, [userId]); // Keep this useEffect intact
+
+  // Check if the user has an eBay token
   useEffect(() => {
-    const fetchUserId = async () => {
+    if (!userId) return;
+
+    const checkEbayToken = async () => {
       try {
-        const response = await fetch("/api/get-user-id");
+        const response = await fetch(`/api/check-ebay-token`, {
+          method: "GET",
+          headers: { "user-id": userId },
+        });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Error fetching user ID:", errorData.error || "Unknown error.");
-          setError(errorData.error || "Failed to fetch user ID.");
+          console.error("Error checking eBay token.");
+          setHasEbayToken(false);
           return;
         }
 
         const data = await response.json();
-        //console.log("Fetched user ID:", data);
-        setUserId(data.id); // Set the database ID
-      } catch (err) {
-        console.error("Error fetching user ID:", err);
-        setError("An unexpected error occurred.");
-      } finally {
-        setLoading(false);
+        setHasEbayToken(data.hasToken); // Set the token status
+      } catch (error) {
+        console.error("Error checking eBay token:", error);
+        setHasEbayToken(false);
       }
     };
 
-    fetchUserId();
-  }, []);
+    checkEbayToken();
+  }, [userId]);
 
-  // Fetch the eBay OAuth URL
+  // Fetch eBay OAuth URL
   useEffect(() => {
     const fetchAuthUrl = async () => {
       try {
@@ -88,66 +115,54 @@ export default function Dashboard() {
     fetchAuthUrl();
   }, []);
 
-  const handleFetchData = async () => {
-    if (loading) {
-      setMessage("Still loading user data, please wait.");
-      return;
-    }
-
-    if (!userId) {
-      setMessage("User not authenticated.");
-      return;
-    }
-
-    let cursor = 0;
-    let hasMore = true;
-
-    try {
-      setLoading(true);
-      setMessage("Starting data fetch...");
-
-      while (hasMore) {
-        const response = await fetch("/api/itemInsert", {
-          method: "GET",
-          headers: {
-            "user-id": userId, // Use dynamic user ID
-            cursor: cursor.toString(), // Send the current cursor value
-          },
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          setMessage(`Error: ${error.error}`);
-          console.error("Error fetching batch:", error.error);
-          break;
-        }
-
-        const data = await response.json();
-        //console.log(`Batch processed: ${cursor}`, data);
-
-        // Update hasMore and cursor for the next batch
-        hasMore = data.hasMore;
-        cursor = data.nextCursor;
-
-        if (hasMore) {
-          setMessage(`Processed batch ${cursor}. Fetching next batch...`);
-        } else {
-          setMessage("All items processed successfully!");
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setMessage("An unexpected error occurred.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   return (
     <div
       className="grid gap-6 px-4 pt-4"
       style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}
     >
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Connect to eBay</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <button
+            onClick={() => authUrl && (window.location.href = authUrl)}
+            className={`px-4 py-2 rounded text-white ${hasEbayToken || !authUrl || loading ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"
+              }`}
+            disabled={hasEbayToken || !authUrl || loading}
+          >
+            {loading ? "Loading..." : hasEbayToken ? "Already Connected" : "Sign in with eBay"}
+          </button>
+          <p className="text-xs text-muted-foreground mt-2">
+            {hasEbayToken
+              ? "Your account is already connected to eBay."
+              : "Click the button above to connect your account to eBay."}
+          </p>
+        </CardContent>
+      </Card>
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Active Listings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading || totalEntries === null ? ( // Show skeleton until data is loaded or valid
+            <div className="skeleton-loader h-8 w-16"></div>
+          ) : error ? (
+            <div className="text-red-500">{error}</div>
+          ) : typeof totalEntries === "number" ? (
+            <div className="text-2xl font-bold">{totalEntries}</div>
+          ) : (
+            <div className="text-red-500">Connect to eBay</div> // Fallback if no valid data
+          )}
+          <p className="text-xs text-muted-foreground">
+            Total number of active eBay listings in your account.
+          </p>
+        </CardContent>
+      </Card>
+
+
+
+
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Recent Out of Stock Items</CardTitle>
@@ -158,7 +173,6 @@ export default function Dashboard() {
             These items went out of stock within the last 30 days.
             <br /> Restock soon.
           </p>
-          <p>{userId}</p>
         </CardContent>
       </Card>
       <Card className="w-full">
@@ -191,70 +205,6 @@ export default function Dashboard() {
           <div className="text-2xl font-bold">7</div>
           <p className="text-xs text-muted-foreground">
             These items have been selling rapidly and are soon to go out-of-stock.
-          </p>
-        </CardContent>
-      </Card>
-      <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Connect to eBay</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <button
-          onClick={() => authUrl && (window.location.href = authUrl)}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          disabled={!authUrl || loading}
-        >
-          {loading ? "Loading..." : "Sign in with eBay"}
-        </button>
-        <p className="text-xs text-muted-foreground mt-2">
-          Click the button above to connect your account to eBay.
-        </p>
-      </CardContent>
-    </Card>
-    <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Fetch eBay Data</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <button
-            onClick={handleFetchData}
-            className={`px-4 py-2 text-white rounded ${loading ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"}`}
-            disabled={loading}
-          >
-            {loading ? "Fetching..." : "Fetch Data"}
-          </button>
-          {message && <p className="text-xs text-muted-foreground mt-2">{message}</p>}
-        </CardContent>
-      </Card>
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">User Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading && <p>Loading...</p>}
-          {error && <p className="text-red-500">{error}</p>}
-          {userId !== null && (
-            <div>
-              <p className="text-2xl font-bold">User ID:</p>
-              <p className="text-lg">{userId}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Active Listings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-2xl font-bold">Loading...</div>
-          ) : error ? (
-            <div className="text-red-500">{error}</div>
-          ) : (
-            <div className="text-2xl font-bold">{totalEntries ?? "N/A"}</div>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Total number of active eBay listings in your account.
           </p>
         </CardContent>
       </Card>

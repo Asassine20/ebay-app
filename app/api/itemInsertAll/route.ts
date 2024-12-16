@@ -5,7 +5,6 @@ import { PrismaClient } from "@prisma/client";
 import refreshToken from "@/lib/refresh-ebay-token";
 
 const prisma = new PrismaClient();
-const ITEMS_PER_BATCH = 10;
 const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
 
 interface EbayItem {
@@ -49,7 +48,7 @@ async function fetchEbayItems(
   if (!res.ok) throw new Error(`Error fetching eBay items: ${res.status}`);
   const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
   const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
-  const items = Array.isArray(activeList) ? activeList : [activeList];
+  const items = Array.isArray(activeList) ? activeList : [activeList].filter(Boolean);
   const totalPages = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfPages || "0", 10);
   const totalEntries = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfEntries || "0", 10);
   return { items, totalPages, totalEntries };
@@ -91,7 +90,7 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  let cursor = parseInt(req.headers.get("cursor") || "0", 10);
+  const cursor = parseInt(req.headers.get("cursor") || "0", 10);
 
   try {
     const allUsers = await prisma.user.findMany();
@@ -118,65 +117,76 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (!ebayToken) continue;
 
-      let hasMore = true;
-      while (hasMore) {
-        const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, cursor, ITEMS_PER_BATCH);
+      // Fetch 1 item per call
+      const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, cursor, 1);
 
-        for (const item of items) {
-          const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken.access_token);
-          const price = typeof item.SellingStatus?.CurrentPrice === "object"
-            ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
-            : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
-          const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
-
-          try {
-            await prisma.inventory.upsert({
-              where: { item_id: item.ItemID },
-              update: {
-                title: item.Title,
-                price,
-                quantity_available: quantityAvailable,
-                total_sold: totalSold,
-                recent_sales: recentSales,
-                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-                user_id: dbUser.user_id,
-              },
-              create: {
-                item_id: item.ItemID,
-                title: item.Title,
-                price,
-                quantity_available: quantityAvailable,
-                total_sold: totalSold,
-                recent_sales: recentSales,
-                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-                user_id: dbUser.user_id,
-              },
-            });
-          } catch (itemError) {
-            console.warn(`Skipping item ${item.ItemID} for user ${dbUser.id} due to error:`, (itemError as Error).message);
-          }
-        }
-
-        if (cursor + 1 < totalPages) {
-          cursor += 1;
-        } else {
-          hasMore = false;
-        }
+      if (items.length === 0) {
+        // No more items to process
+        return NextResponse.json({ message: "No more items to process", hasMore: false, nextCursor: null });
       }
+
+      const item = items[0];
+      const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken.access_token);
+      const price = typeof item.SellingStatus?.CurrentPrice === "object"
+        ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
+        : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
+      const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
+
+      try {
+        await prisma.inventory.upsert({
+          where: { item_id: item.ItemID },
+          update: {
+            title: item.Title,
+            price,
+            quantity_available: quantityAvailable,
+            total_sold: totalSold,
+            recent_sales: recentSales,
+            gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+            user_id: dbUser.user_id,
+          },
+          create: {
+            item_id: item.ItemID,
+            title: item.Title,
+            price,
+            quantity_available: quantityAvailable,
+            total_sold: totalSold,
+            recent_sales: recentSales,
+            gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+            user_id: dbUser.user_id,
+          },
+        });
+      } catch (itemError) {
+        console.warn(`Skipping item ${item.ItemID} for user ${dbUser.id} due to error:`, (itemError as Error).message);
+      }
+
+      const hasMore = cursor + 1 < totalPages;
+
+      // If there are more items, call the same endpoint again with nextCursor before returning
+      if (hasMore) {
+        // Trigger the next call recursively
+        // We do not await this fetch so the process can continue asynchronously
+        fetch(req.nextUrl.toString(), {
+          method: "POST",
+          headers: {
+            cursor: String(cursor + 1),
+          }
+        }).catch((err) => console.error("Error triggering next recursion:", err));
+      }
+
+      return NextResponse.json({
+        message: "Item processed successfully",
+        hasMore,
+        nextCursor: hasMore ? cursor + 1 : null,
+      });
     }
 
     return NextResponse.json({
-      message: "All items for all users inserted successfully",
+      message: "All users processed successfully",
       hasMore: false,
       nextCursor: null,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error in POST handler:", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    } else {
-      console.error("Unexpected error in POST handler:", error);
-      return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
-    }
+    console.error("Error in POST handler:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "An unexpected error occurred." }, { status: 500 });
   }
 }

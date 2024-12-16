@@ -1,3 +1,4 @@
+// /api/long-running-task/route.ts
 import { NextResponse, NextRequest } from "next/server";
 import { parseStringPromise } from "xml2js";
 import { PrismaClient } from "@prisma/client";
@@ -21,11 +22,8 @@ async function fetchEbayItems(
   cursor: number,
   batchSize: number
 ): Promise<{ items: EbayItem[]; totalPages: number; totalEntries: number }> {
-  const allItems: EbayItem[] = [];
   const pageNumber = cursor + 1;
-
-  try {
-    const body = `<?xml version="1.0" encoding="utf-8"?>
+  const body = `<?xml version="1.0" encoding="utf-8"?>
     <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
         <RequesterCredentials>
             <eBayAuthToken>${accessToken}</eBayAuthToken>
@@ -40,41 +38,27 @@ async function fetchEbayItems(
             </Pagination>
         </ActiveList>
     </GetMyeBaySellingRequest>`;
-
-    const headers: HeadersInit = {
-      "X-EBAY-API-SITEID": "0",
-      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-      "X-EBAY-API-CALL-NAME": "GetMyeBaySelling",
-      "Content-Type": "text/xml",
-    };
-
-    const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
-    const xml = await res.text();
-
-    if (!res.ok) {
-      console.error(`Error fetching eBay items: ${res.status}`);
-      throw new Error(`Error fetching eBay items: ${res.status}`);
-    }
-
-    const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-    const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
-    const items = Array.isArray(activeList) ? activeList : [activeList];
-    const totalPages = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfPages || "0", 10);
-    const totalEntries = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfEntries || "0", 10);
-
-    allItems.push(...items);
-    return { items: allItems, totalPages, totalEntries };
-  } catch (error) {
-    console.error("Error in fetchEbayItems:", (error as Error).message);
-    throw error;
-  }
+  const headers: HeadersInit = {
+    "X-EBAY-API-SITEID": "0",
+    "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+    "X-EBAY-API-CALL-NAME": "GetMyeBaySelling",
+    "Content-Type": "text/xml",
+  };
+  const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+  const xml = await res.text();
+  if (!res.ok) throw new Error(`Error fetching eBay items: ${res.status}`);
+  const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+  const activeList = parsedData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item || [];
+  const items = Array.isArray(activeList) ? activeList : [activeList];
+  const totalPages = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfPages || "0", 10);
+  const totalEntries = parseInt(parsedData.GetMyeBaySellingResponse?.ActiveList?.PaginationResult?.TotalNumberOfEntries || "0", 10);
+  return { items, totalPages, totalEntries };
 }
 
 async function fetchTransactionData(itemId: string, authToken: string): Promise<{ totalSold: number; recentSales: number }> {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - 30);
-
   const body = `<?xml version="1.0" encoding="utf-8"?>
 <GetItemTransactionsRequest xmlns="urn:ebay:apis:eBLBaseComponents">
     <RequesterCredentials>
@@ -88,46 +72,26 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
         <PageNumber>1</PageNumber>
     </Pagination>
 </GetItemTransactionsRequest>`;
-
   const headers: HeadersInit = {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
     "X-EBAY-API-CALL-NAME": "GetItemTransactions",
     "Content-Type": "text/xml",
   };
-
-  try {
-    const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
-    const xml = await res.text();
-
-    if (!res.ok) {
-      console.error(`Error fetching transactions for ItemID ${itemId}: ${res.status}`);
-      return { totalSold: 0, recentSales: 0 };
-    }
-
-    const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-    const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
-
-    if (!transactions) {
-      return { totalSold: 0, recentSales: 0 };
-    }
-
-    const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
-    const recentSales = transactionArray.reduce((sum, txn) => {
-      const quantity = parseInt(txn.QuantityPurchased, 10) || 0;
-      return sum + quantity;
-    }, 0);
-
-    const totalSold = parseInt(parsedData.GetItemTransactionsResponse?.Item?.SellingStatus?.QuantitySold || "0", 10);
-    return { totalSold, recentSales };
-  } catch (error) {
-    console.error(`Error fetching transactions for ItemID ${itemId}:`, (error as Error).message);
-    return { totalSold: 0, recentSales: 0 };
-  }
+  const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+  const xml = await res.text();
+  if (!res.ok) return { totalSold: 0, recentSales: 0 };
+  const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+  const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
+  if (!transactions) return { totalSold: 0, recentSales: 0 };
+  const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
+  const recentSales = transactionArray.reduce((sum, txn) => sum + (parseInt(txn.QuantityPurchased, 10) || 0), 0);
+  const totalSold = parseInt(parsedData.GetItemTransactionsResponse?.Item?.SellingStatus?.QuantitySold || "0", 10);
+  return { totalSold, recentSales };
 }
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  const cursor = parseInt(req.headers.get("cursor") || "0", 10);
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  let cursor = parseInt(req.headers.get("cursor") || "0", 10);
 
   try {
     const allUsers = await prisma.user.findMany();
@@ -135,101 +99,83 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ message: "No users found", hasMore: false, nextCursor: null });
     }
 
-    let anyHasMore = false;
-    let nextCursorValue: number | null = null;
-
     for (const dbUser of allUsers) {
       let ebayToken = await prisma.ebay_tokens.findUnique({ where: { user_id: dbUser.id } });
       if (!ebayToken || !ebayToken.access_token || ebayToken.expires_at <= new Date()) {
         const refreshedToken = await refreshToken(dbUser.id);
-        if (ebayToken) {
-          ebayToken = {
-            ...ebayToken,
-            access_token: refreshedToken.access_token,
-            expires_at: refreshedToken.expires_at,
-          };
-        } else {
-          ebayToken = {
-            id: 0,
-            user_id: dbUser.id,
-            created_time: new Date(),
-            updated_time: new Date(),
-            access_token: refreshedToken.access_token,
-            refresh_token: "",
-            expires_at: refreshedToken.expires_at,
-          };
-        }
+        ebayToken = ebayToken
+          ? { ...ebayToken, access_token: refreshedToken.access_token, expires_at: refreshedToken.expires_at }
+          : {
+              id: 0,
+              user_id: dbUser.id,
+              created_time: new Date(),
+              updated_time: new Date(),
+              access_token: refreshedToken.access_token,
+              refresh_token: "",
+              expires_at: refreshedToken.expires_at,
+            };
       }
 
-      if (!ebayToken) {
-        console.warn(`No valid token for user ${dbUser.id}, skipping.`);
-        continue;
-      }
+      if (!ebayToken) continue;
 
-      const { items, totalPages } = await fetchEbayItems(
-        ebayToken.access_token,
-        cursor,
-        ITEMS_PER_BATCH
-      );
+      let hasMore = true;
+      while (hasMore) {
+        const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, cursor, ITEMS_PER_BATCH);
 
-      for (const item of items) {
-        try {
+        for (const item of items) {
           const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken.access_token);
-          const price =
-            typeof item.SellingStatus?.CurrentPrice === "object"
-              ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
-              : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
+          const price = typeof item.SellingStatus?.CurrentPrice === "object"
+            ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
+            : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
           const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
 
-          await prisma.inventory.upsert({
-            where: { item_id: item.ItemID },
-            update: {
-              title: item.Title,
-              price,
-              quantity_available: quantityAvailable,
-              total_sold: totalSold,
-              recent_sales: recentSales,
-              gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id,
-            },
-            create: {
-              item_id: item.ItemID,
-              title: item.Title,
-              price,
-              quantity_available: quantityAvailable,
-              total_sold: totalSold,
-              recent_sales: recentSales,
-              gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id,
-            },
-          });
-        } catch (itemError) {
-          if (itemError instanceof Error) {
-            console.warn(`Skipping item ${item.ItemID} for user ${dbUser.id} due to error:`, itemError.message);
-          } else {
-            console.warn(`Skipping item ${item.ItemID} for user ${dbUser.id} due to an unknown error.`);
+          try {
+            await prisma.inventory.upsert({
+              where: { item_id: item.ItemID },
+              update: {
+                title: item.Title,
+                price,
+                quantity_available: quantityAvailable,
+                total_sold: totalSold,
+                recent_sales: recentSales,
+                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+                user_id: dbUser.user_id,
+              },
+              create: {
+                item_id: item.ItemID,
+                title: item.Title,
+                price,
+                quantity_available: quantityAvailable,
+                total_sold: totalSold,
+                recent_sales: recentSales,
+                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+                user_id: dbUser.user_id,
+              },
+            });
+          } catch (itemError) {
+            console.warn(`Skipping item ${item.ItemID} for user ${dbUser.id} due to error:`, (itemError as Error).message);
           }
         }
-      }
 
-      const hasMore = cursor + 1 < totalPages;
-      if (hasMore) {
-        anyHasMore = true;
-        nextCursorValue = cursor + 1;
+        if (cursor + 1 < totalPages) {
+          cursor += 1;
+        } else {
+          hasMore = false;
+        }
       }
     }
 
     return NextResponse.json({
-      message: "All users processed successfully",
-      hasMore: anyHasMore,
-      nextCursor: anyHasMore ? nextCursorValue : null,
+      message: "All items for all users inserted successfully",
+      hasMore: false,
+      nextCursor: null,
     });
   } catch (error) {
     if (error instanceof Error) {
-      console.error("Error in GET handler:", error.message);
+      console.error("Error in POST handler:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
     } else {
-      console.error("Unexpected error in GET handler:", error);
+      console.error("Unexpected error in POST handler:", error);
       return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
     }
   }

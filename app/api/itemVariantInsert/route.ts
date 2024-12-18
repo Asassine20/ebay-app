@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { createClient } from "@supabase/supabase-js";
 import refreshToken from "@/lib/refresh-ebay-token";
 import { parseStringPromise } from "xml2js";
 
-const prisma = new PrismaClient();
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
+
 const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
 
 interface Variation {
@@ -11,6 +12,7 @@ interface Variation {
   price: number;
   quantity: number;
   quantity_sold: number;
+  recent_sales: number;
   picture_url: string;
 }
 
@@ -20,7 +22,73 @@ interface RefreshedToken {
   refresh_token?: string; // Optional property
 }
 
-async function fetchItemVariations(accessToken: string, itemId: string): Promise<Variation[]> {
+// Fetch variation sales data for the last 30 days
+async function fetchVariationSales(accessToken: string, itemId: string): Promise<Record<string, number>> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30); // Last 30 days
+  
+    const body = `<?xml version="1.0" encoding="utf-8"?>
+  <GetItemTransactionsRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+    <RequesterCredentials>
+      <eBayAuthToken>${accessToken}</eBayAuthToken>
+    </RequesterCredentials>
+    <ItemID>${itemId}</ItemID>
+    <ModTimeFrom>${startDate.toISOString()}</ModTimeFrom>
+    <ModTimeTo>${endDate.toISOString()}</ModTimeTo>
+    <Pagination>
+      <EntriesPerPage>100</EntriesPerPage>
+      <PageNumber>1</PageNumber>
+    </Pagination>
+  </GetItemTransactionsRequest>`;
+  
+    const headers: HeadersInit = {
+      "X-EBAY-API-SITEID": "0",
+      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+      "X-EBAY-API-CALL-NAME": "GetItemTransactions",
+      "Content-Type": "text/xml",
+    };
+  
+    try {
+      const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+      const xml = await res.text();
+  
+      if (!res.ok) {
+        console.error(`Error fetching transaction data for ItemID: ${itemId}, Status: ${res.status}`);
+        return {};
+      }
+  
+      const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+  
+      const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
+      if (!transactions) {
+        return {};
+      }
+  
+      const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
+      const salesData: Record<string, number> = {};
+  
+      transactionArray.forEach((txn) => {
+        const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList;
+        const quantityPurchased = parseInt(txn.QuantityPurchased, 10) || 0;
+  
+        if (variationSpecifics) {
+          const nameValue = Array.isArray(variationSpecifics)
+            ? variationSpecifics.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
+            : `${variationSpecifics.Name}: ${variationSpecifics.Value}`;
+  
+          salesData[nameValue] = (salesData[nameValue] || 0) + quantityPurchased;
+        }
+      });
+  
+      return salesData;
+    } catch (error) {
+      console.error("Error in fetchVariationSales:", error);
+      return {};
+    }
+  }
+
+  async function fetchItemVariations(accessToken: string, itemId: string, salesData: Record<string, number>): Promise<Variation[]> {
     const body = `<?xml version="1.0" encoding="utf-8"?>
   <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
     <RequesterCredentials>
@@ -49,13 +117,7 @@ async function fetchItemVariations(accessToken: string, itemId: string): Promise
       const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
       const itemDetails = parsedData.GetItemResponse?.Item;
   
-      if (!itemDetails) {
-        console.error(`Parsed item details are undefined for ItemID: ${itemId}`);
-        console.error(`Raw Response Body: ${xml}`);
-        return [];
-      }
-  
-      if (!itemDetails.Variations?.Variation) {
+      if (!itemDetails || !itemDetails.Variations?.Variation) {
         console.log(`No variations found for ItemID: ${itemId}`);
         return [];
       }
@@ -75,8 +137,9 @@ async function fetchItemVariations(accessToken: string, itemId: string): Promise
           .join(", ");
   
         const price = parseFloat(variation.StartPrice?._ || variation.StartPrice || "0.0");
-        const quantity = parseInt(variation.Quantity || "0", 10); // Direct Quantity from API
+        const quantity = parseInt(variation.Quantity || "0", 10);
         const quantitySold = parseInt(variation.SellingStatus?.QuantitySold || "0", 10);
+        const recentSales = salesData[name] || 0; // Fetch recent sales from salesData
   
         // Match picture for this variation, if available
         const picture = pictures.find(
@@ -89,6 +152,7 @@ async function fetchItemVariations(accessToken: string, itemId: string): Promise
           price,
           quantity,
           quantity_sold: quantitySold,
+          recent_sales: recentSales, // Include recent sales
           picture_url: picture?.PictureURL || itemDetails.PictureDetails?.PictureURL || "N/A",
         };
       });
@@ -101,11 +165,20 @@ async function fetchItemVariations(accessToken: string, itemId: string): Promise
     }
   }
   
-
+  
+  // Update the main POST handler
   export async function POST() {
     try {
-      const allUsers = await prisma.user.findMany();
-      if (allUsers.length === 0) {
+      const { data: allUsers, error: userError } = await supabase
+        .from("user")
+        .select("id, user_id");
+  
+      if (userError) {
+        console.error("Error fetching users:", userError);
+        return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+      }
+  
+      if (!allUsers || allUsers.length === 0) {
         console.log("No users found in the database.");
         return NextResponse.json({ message: "No users found" });
       }
@@ -113,95 +186,84 @@ async function fetchItemVariations(accessToken: string, itemId: string): Promise
       for (const dbUser of allUsers) {
         console.log(`Processing user: ${dbUser.id}`);
   
-        let ebayToken = await prisma.ebay_tokens.findUnique({ where: { user_id: dbUser.id } });
+        let { data: ebayToken, error: tokenError } = await supabase
+          .from("ebay_tokens")
+          .select("access_token, expires_at, refresh_token")
+          .eq("user_id", dbUser.id)
+          .single();
   
-        if (!ebayToken || !ebayToken.access_token || ebayToken.expires_at <= new Date()) {
+        if (tokenError || !ebayToken || new Date(ebayToken.expires_at) <= new Date()) {
           console.log(`Refreshing token for user: ${dbUser.id}`);
-          const refreshedToken: RefreshedToken = await refreshToken(dbUser.id);
+          const refreshedToken = await refreshToken(dbUser.id);
   
           if (!refreshedToken || !refreshedToken.access_token) {
             console.warn(`Failed to refresh token for user ${dbUser.id}, skipping.`);
             continue;
           }
+          
   
-          ebayToken = await prisma.ebay_tokens.upsert({
-            where: { user_id: dbUser.id },
-            update: {
-              access_token: refreshedToken.access_token,
-              expires_at: refreshedToken.expires_at,
-              updated_time: new Date(),
-              refresh_token: refreshedToken.refresh_token || "",
-            },
-            create: {
+          const { error: upsertError } = await supabase
+            .from("ebay_tokens")
+            .upsert({
               user_id: dbUser.id,
               access_token: refreshedToken.access_token,
               refresh_token: refreshedToken.refresh_token || "",
               expires_at: refreshedToken.expires_at,
-              created_time: new Date(),
               updated_time: new Date(),
-            },
-          });
+            });
+  
+          if (upsertError) {
+            console.error("Error updating token:", upsertError);
+            continue;
+          }
+  
+          ebayToken = refreshedToken;
+          
         }
   
-        const inventoryItems = await prisma.inventory.findMany({
-          where: { user_id: dbUser.user_id },
-        });
+        const { data: inventoryItems, error: inventoryError } = await supabase
+          .from("inventory")
+          .select("id, item_id")
+          .eq("user_id", dbUser.user_id);
+  
+        if (inventoryError) {
+          console.error(`Error fetching inventory for user ${dbUser.id}:`, inventoryError);
+          continue;
+        }
   
         for (const inventoryItem of inventoryItems) {
           console.log(`Fetching variations for ItemID: ${inventoryItem.item_id}`);
-  
-          let variations: Variation[];
-          try {
-            variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id);
-  
-            if (!variations || variations.length === 0) {
-              console.log(`No variations found for ItemID: ${inventoryItem.item_id}`);
-              continue;
-            }
-          } catch (fetchError) {
-            console.error(`Error fetching variations for ItemID: ${inventoryItem.item_id}`, fetchError);
-            continue; // Skip this item and continue with the next
+          if (!ebayToken) {
+            console.log(`No token found for user: ${dbUser.id}, skipping.`);
+            continue;
           }
+          
+          const salesData = await fetchVariationSales(ebayToken.access_token, inventoryItem.item_id);
+          const variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id, salesData);
   
-          const validVariations = variations.filter((variation) => {
-            if (!variation.name || !variation.price || !variation.quantity) {
-              console.warn(`Invalid variation data for ItemID: ${inventoryItem.item_id}`, variation);
-              return false; // Skip invalid variations
+          for (const variation of variations) {
+            const { error: upsertError } = await supabase
+              .from("inventoryVariation")
+              .upsert({
+                inventory_id: inventoryItem.id,
+                name: variation.name,
+                price: variation.price,
+                quantity: variation.quantity,
+                quantity_sold: variation.quantity_sold,
+                recent_sales: variation.recent_sales, // Save recent sales
+                picture_url: Array.isArray(variation.picture_url)
+                  ? variation.picture_url[0]
+                  : variation.picture_url,
+              });
+  
+            if (upsertError) {
+              console.error(
+                `Error upserting variation for ItemID: ${inventoryItem.item_id}, Variation: ${variation.name}`,
+                upsertError
+              );
+            } else {
+              console.log(`Successfully upserted variation: ${variation.name} for ItemID: ${inventoryItem.item_id}`);
             }
-            return true;
-          });
-  
-          try {
-            await prisma.$transaction(
-              validVariations.map((variation: Variation) =>
-                prisma.inventoryVariation.upsert({
-                  where: {
-                    inventory_id_name: {
-                      inventory_id: inventoryItem.id,
-                      name: variation.name,
-                    },
-                  },
-                  update: {
-                    price: variation.price,
-                    quantity: variation.quantity,
-                    quantity_sold: variation.quantity_sold,
-                    picture_url: Array.isArray(variation.picture_url) ? variation.picture_url[0] : variation.picture_url, // Use the first URL
-                  },
-                  create: {
-                    inventory_id: inventoryItem.id,
-                    name: variation.name,
-                    price: variation.price,
-                    quantity: variation.quantity,
-                    quantity_sold: variation.quantity_sold,
-                    picture_url: Array.isArray(variation.picture_url) ? variation.picture_url[0] : variation.picture_url, // Use the first URL
-                  },
-                })
-              )
-            );
-            console.log(`Successfully upserted variations for ItemID: ${inventoryItem.item_id}`);
-          } catch (upsertError) {
-            console.error(`Error during upsert for ItemID: ${inventoryItem.item_id}`, upsertError);
-            // Skip this item and continue
           }
         }
   

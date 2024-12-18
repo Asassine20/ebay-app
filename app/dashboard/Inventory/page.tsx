@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AgGridReact } from "ag-grid-react";
+import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
@@ -10,108 +11,69 @@ interface Item {
   Title: string;
   Price: number;
   Quantity: number;
-  Variations: Variation[];
   TotalSold: number;
+  RecentSales: number;
   GalleryURL?: string;
-}
-
-interface Variation {
-  Price: string;
-  Quantity: string;
-  Specifics: { Name: string; Value: string }[];
 }
 
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("Loading...");
-  const [totalPages, setTotalPages] = useState(1);
-  const entriesPerPage = 200;
+  const [searchText, setSearchText] = useState(""); // Search state
 
   useEffect(() => {
-    fetchListings(currentPage);
-  }, [currentPage]);
+    fetchListings();
+  }, []);
 
-  const fetchListings = async (page: number) => {
+  const fetchListings = async () => {
     setLoading(true);
-    setStatus(`Loading page ${page}...`);
 
     try {
-      const response = await fetch(
-        `/api/ebay-listings?page=${page}&entriesPerPage=${entriesPerPage}`
-      );
+      const response = await fetch(`/api/getInventory?page=1&entriesPerPage=5000`); // Fetch all data
+      if (!response.ok) throw new Error("Failed to fetch data");
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (!Array.isArray(data)) {
-        console.error("Expected an array but got:", data);
-        setStatus("Unexpected data format received from server.");
-        return;
-      }
+      const { data } = await response.json();
 
       const processedData = data.map((item: any) => ({
-        ...item,
-        Price: parseFloat(item.Price) || 0,
-        Quantity: parseInt(item.Quantity, 10) || 0,
-        TotalSold: parseInt(item.TotalSold, 10) || 0,
+        ItemID: item.item_id,
+        Title: item.title,
+        Price: item.price || 0,
+        Quantity: item.quantity_available || 0,
+        TotalSold: item.total_sold || 0,
+        RecentSales: item.recent_sales || 0, // Add Recent Sales
+        GalleryURL: item.gallery_url,
       }));
 
       setItems(processedData);
-      setTotalPages(Math.ceil(4111 / entriesPerPage));
-      setStatus(`Page ${page} loaded successfully.`);
     } catch (error) {
-      console.error("Error fetching listings:", error);
-      setStatus(`Error: ${(error as Error).message}`);
+      console.error("Error fetching inventory:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage((prevPage) => prevPage + 1);
-    }
+  const onQuickFilterChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
   };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prevPage) => prevPage - 1);
-    }
-  };
-
-  const clearCache = async () => {
-    await fetch(`/api/ebay-listings`, {
-      method: "POST",
-      body: JSON.stringify({ page: 1, entriesPerPage: 200 }),
-    });
-    alert("Cache cleared!");
-  };
-
-  const columns = [
+  const columns: ColDef<Item>[] = [
     {
       headerName: "Image",
-      field: "GalleryURL" as keyof Item,
-      width: 100,
+      field: "GalleryURL",
+      autoHeaderHeight: true, 
+      wrapHeaderText: true, 
+      flex: 1, // Make this column dynamic
+      minWidth: 120,
       cellRenderer: ({ value }: { value: string }) =>
-        value ? (
-          <img
-            src={value}
-            alt="Item"
-            style={{ width: "100px", height: "auto", objectFit: "cover" }}
-          />
-        ) : (
-          "No Image"
-        ),
+        value ? <img src={value} alt="Item" style={{ width: "70px", objectFit: "cover" }} /> : "No Image",
     },
     {
       headerName: "Title",
-      field: "Title" as keyof Item,
-      width: 400,
+      field: "Title",
+      autoHeaderHeight: true, 
+      wrapHeaderText: true, 
+      flex: 3, // Title gets a larger proportion
+      minWidth: 200,
       cellRenderer: ({ data }: { data: Item }) => (
         <a
           href={`https://www.ebay.com/itm/${data.ItemID}`}
@@ -125,82 +87,66 @@ export default function InventoryPage() {
     },
     {
       headerName: "Price",
-      field: "Price" as keyof Item,
-      width: 100,
-      valueFormatter: (params: { value: number }) =>
-        `$${params.value.toFixed(2)}`,
+      field: "Price",
+      autoHeaderHeight: true, 
+      wrapHeaderText: true, 
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: ({ value }: { value: number }) => `$${value.toFixed(2)}`,
     },
-    {
-      headerName: "Quantity",
-      field: "Quantity" as keyof Item,
-      width: 100,
-    },
-    {
-      headerName: "Sold",
-      field: "TotalSold" as keyof Item,
-      width: 100,
-    },
-    {
-      headerName: "Variations",
-      field: "Variations" as keyof Item,
-      width: 150,
-      cellRenderer: ({ data }: { data: Item }) =>
-        data.Variations.length > 0 ? (
-          <a
-            href={`/dashboard/inventory/${data.ItemID}`}
-            className="text-blue-500 hover:underline"
-          >
-            {data.Variations.length} Variations
-          </a>
-        ) : (
-          "None"
-        ),
-    },
+    { 
+      headerName: "Quantity Available", 
+      field: "Quantity", 
+      autoHeaderHeight: true, 
+      wrapHeaderText: true, 
+      flex: 1, 
+      minWidth: 100 },
+    { 
+      headerName: "Total Sales", 
+      field: "TotalSold", 
+      autoHeaderHeight: true, 
+      wrapHeaderText: true, 
+      flex: 1, 
+      minWidth: 100 },
+    { 
+      headerName: "Recent Sales", 
+      field: "RecentSales", 
+      autoHeaderHeight: true, 
+      wrapHeaderText: true, 
+      flex: 1, 
+      minWidth: 100 },
   ];
 
   return (
-    <div className="container mx-auto p-4">
+   
+   <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>
-      <div className="mb-4 flex justify-between">
-        <button
-          onClick={handlePreviousPage}
-          disabled={loading || currentPage === 1}
-          className={`px-4 py-2 text-white rounded ${
-            currentPage === 1 ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-700"
-          }`}
-        >
-          Previous
-        </button>
-        <p className="text-gray-600">{status}</p>
-        <button
-          onClick={handleNextPage}
-          disabled={loading || currentPage === totalPages}
-          className={`px-4 py-2 text-white rounded ${
-            currentPage === totalPages
-              ? "bg-gray-400"
-              : "bg-blue-500 hover:bg-blue-700"
-          }`}
-        >
-          Next
-        </button>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search..."
+          value={searchText}
+          onChange={onQuickFilterChanged}
+          className="px-4 py-2 border rounded w-full"
+        />
       </div>
-      <div
-        className="ag-theme-alpine"
-        style={{ height: "800px", width: "100%" }}
-      >
+      <div className="ag-theme-alpine" style={{ height: "600px", width: "100%" }}>
+        
         <AgGridReact<Item>
           rowData={items}
           columnDefs={columns}
-          defaultColDef={{ sortable: true, filter: true }}
-          pagination={false}
+          defaultColDef={{
+            sortable: true,
+            filter: true,
+            resizable: true,
+          }}
+          pagination={true} // Enable client-side pagination
+          paginationPageSize={100} // Page size reduced to 100 rows
+          quickFilterText={searchText}
           rowHeight={100}
         />
       </div>
-      <div className="mt-4 text-center">
-        <p>
-          Page {currentPage} of {totalPages}
-        </p>
-      </div>
+      {loading && <p className="text-center mt-4">Loading...</p>}
     </div>
   );
 }

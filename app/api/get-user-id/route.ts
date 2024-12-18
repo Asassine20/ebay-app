@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,15 +17,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    //console.log("Clerk userId retrieved:", clerkUserId);
+    // Query the Supabase database to find the corresponding user
+    const { data: user, error: userError } = await supabase
+      .from("user")
+      .select("id")
+      .eq("user_id", clerkUserId)
+      .single();
 
-    // Query the database to find the corresponding user
-    const user = await prisma.user.findUnique({
-      where: { user_id: clerkUserId },
-    });
-
-    //console.log("Prisma query input user_id:", clerkUserId);
-    //console.log("Prisma query result:", user);
+    if (userError) {
+      console.error("Error fetching user from Supabase:", userError);
+      return NextResponse.json(
+        { error: "Failed to fetch user from the database." },
+        { status: 500 }
+      );
+    }
 
     if (!user) {
       console.error("No user found in the database for user_id:", clerkUserId);

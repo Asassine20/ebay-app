@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -13,29 +15,53 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // Extract query parameters
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1", 10);
     const entriesPerPage = parseInt(searchParams.get("entriesPerPage") || "200", 10);
+    const page = parseInt(searchParams.get("page") || "1", 10);
 
-    // Fetch inventory data for the user with pagination
-    const inventoryData = await prisma.inventory.findMany({
-      where: { user_id: userId },
-      skip: (page - 1) * entriesPerPage,
-      take: entriesPerPage,
-    });
+    // Get the total count of items
+    const { count: totalCount, error: countError } = await supabase
+      .from("inventory")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
 
-    // Total items count for pagination
-    const totalCount = await prisma.inventory.count({ where: { user_id: userId } });
+    if (countError) {
+      console.error("Error fetching total count:", countError);
+      return NextResponse.json({ message: "Failed to fetch inventory count" }, { status: 500 });
+    }
+
+    const totalItems = totalCount || 0;
+
+    // Fetch all rows in batches if needed
+    const allItems = [];
+    const batchSize = 1000; // Supabase's maximum batch size
+    let start = 0;
+
+    while (start < totalItems) {
+      const { data: batchData, error: batchError } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("user_id", userId)
+        .range(start, Math.min(start + batchSize - 1, totalItems - 1));
+
+      if (batchError) {
+        console.error("Error fetching batch data:", batchError);
+        return NextResponse.json({ message: "Failed to fetch inventory data" }, { status: 500 });
+      }
+
+      allItems.push(...(batchData || []));
+      start += batchSize;
+    }
+
+    // Paginate the fetched data for the current page
+    const paginatedData = allItems.slice((page - 1) * entriesPerPage, page * entriesPerPage);
 
     return NextResponse.json({
-      data: inventoryData,
-      totalPages: Math.ceil(totalCount / entriesPerPage),
+      data: paginatedData,
+      totalPages: Math.ceil(totalItems / entriesPerPage),
       currentPage: page,
     });
   } catch (error) {
     console.error("Error fetching inventory:", error);
-    return NextResponse.json(
-      { message: "Failed to fetch inventory data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to fetch inventory data" }, { status: 500 });
   }
 }

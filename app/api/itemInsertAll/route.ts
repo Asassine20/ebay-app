@@ -1,9 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
 import { parseStringPromise } from "xml2js";
-import { PrismaClient } from "@prisma/client";
+import { createClient } from "@supabase/supabase-js";
 import refreshToken from "@/lib/refresh-ebay-token";
 
-const prisma = new PrismaClient();
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
 const ITEMS_PER_BATCH = 200;
 
@@ -96,122 +96,114 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-    let cursor = parseInt(req.headers.get("cursor") || "0", 10);
-  
-    try {
-      const allUsers = await prisma.user.findMany();
-      if (allUsers.length === 0) {
-        return NextResponse.json({ message: "No users found", hasMore: false, nextCursor: null });
-      }
-  
-      for (const dbUser of allUsers) {
-        let ebayToken = await prisma.ebay_tokens.findUnique({ where: { user_id: dbUser.id } });
-        if (!ebayToken || !ebayToken.access_token || ebayToken.expires_at <= new Date()) {
-          const refreshedToken = await refreshToken(dbUser.id);
-          ebayToken = ebayToken
-            ? { ...ebayToken, access_token: refreshedToken.access_token, expires_at: refreshedToken.expires_at }
-            : {
-                id: 0,
-                user_id: dbUser.id,
-                created_time: new Date(),
-                updated_time: new Date(),
-                access_token: refreshedToken.access_token,
-                refresh_token: "",
-                expires_at: refreshedToken.expires_at,
-              };
-        }
-  
-        if (!ebayToken) {
-          console.warn(`No valid token for user ${dbUser.id}, skipping.`);
+  let cursor = parseInt(req.headers.get("cursor") || "0", 10);
+
+  try {
+    const { data: allUsers, error: userError } = await supabase.from("user").select("id, user_id");
+
+    if (userError) {
+      console.error("Error fetching users:", userError);
+      return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+    }
+
+    if (!allUsers || allUsers.length === 0) {
+      return NextResponse.json({ message: "No users found", hasMore: false, nextCursor: null });
+    }
+
+    for (const dbUser of allUsers) {
+      let { data: ebayToken, error: tokenError } = await supabase
+        .from("ebay_tokens")
+        .select("access_token, refresh_token, expires_at")
+        .eq("user_id", dbUser.id)
+        .single();
+
+      if (!ebayToken || tokenError || new Date(ebayToken.expires_at) <= new Date()) {
+        console.log(`Refreshing token for user: ${dbUser.id}`);
+        const refreshedToken = await refreshToken(dbUser.id);
+
+        if (!refreshedToken || !refreshedToken.access_token) {
+          console.warn(`Failed to refresh token for user ${dbUser.id}, skipping.`);
           continue;
         }
-  
-        let currentPage = 1;
-        let hasMore = true;
-  
-        while (hasMore) {
-          const { items, totalPages } = await fetchEbayItems(
-            ebayToken.access_token,
-            currentPage,
-            ITEMS_PER_BATCH
-          );
-  
-          console.log(`User ${dbUser.id}: Fetched ${items.length} items from page ${currentPage} of ${totalPages}`);
-  
-          if (items.length === 0) {
-            break; // No more items for this user
-          }
-  
-          const upsertData: any[] = [];
-  
-          for (const item of items) {
-            const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken.access_token);
-            const price = typeof item.SellingStatus?.CurrentPrice === "object"
-              ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
-              : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
-            const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
-  
-            upsertData.push({
-              where: { item_id: item.ItemID },
-              update: {
-                title: item.Title,
-                price,
-                quantity_available: quantityAvailable,
-                total_sold: totalSold,
-                recent_sales: recentSales,
-                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-                user_id: dbUser.user_id,
-              },
-              create: {
-                item_id: item.ItemID,
-                title: item.Title,
-                price,
-                quantity_available: quantityAvailable,
-                total_sold: totalSold,
-                recent_sales: recentSales,
-                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-                user_id: dbUser.user_id,
-              },
-            });
-          }
-  
-          // Perform upsert operations in a batch
-          try {
-            await prisma.$transaction(
-              upsertData.map((data) => 
-                prisma.inventory.upsert({
-                  where: data.where,
-                  update: data.update,
-                  create: data.create,
-                })
-              )
-            );
-          } catch (batchError) {
-            console.error(`Error in batch upsert for user ${dbUser.id}:`, batchError);
-          }
-  
-          // Pagination logic
-          if (currentPage >= totalPages) {
-            hasMore = false;
-          } else {
-            currentPage += 1;
-          }
+
+        const { error: upsertError } = await supabase.from("ebay_tokens").upsert({
+          user_id: dbUser.id,
+          access_token: refreshedToken.access_token,
+          refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+          expires_at: refreshedToken.expires_at,
+          updated_time: new Date(),
+        });
+
+        if (upsertError) {
+          console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
+          continue;
         }
-  
-        console.log(`Finished processing user: ${dbUser.id}`);
+
+        ebayToken = {
+          access_token: refreshedToken.access_token,
+          refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+          expires_at: refreshedToken.expires_at,
+        };
       }
-  
-      return NextResponse.json({
-        message: "All users processed successfully",
-        hasMore: false,
-        nextCursor: null,
-      });
-    } catch (error) {
-      console.error("Error in POST handler:", error);
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "An unexpected error occurred." },
-        { status: 500 }
-      );
+
+      if (!ebayToken) {
+        console.warn(`No valid eBay token found for user ${dbUser.id}, skipping.`);
+        continue;
+      }
+
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, currentPage, ITEMS_PER_BATCH);
+
+        if (items.length === 0) break;
+
+        console.log(`User ${dbUser.id}: Fetched ${items.length} items from page ${currentPage} of ${totalPages}`);
+
+        const upsertData = await Promise.all(
+          items.map(async (item) => {
+            const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken!.access_token);
+            const price =
+              typeof item.SellingStatus?.CurrentPrice === "object"
+                ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
+                : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
+            const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
+
+            return {
+              item_id: item.ItemID,
+              title: item.Title || "Unknown Item",
+              price: price || 0.0, // Ensure price is not null
+              quantity_available: quantityAvailable || 0, // Ensure quantity is not null
+              total_sold: totalSold || 0, // Ensure total_sold is not null
+              recent_sales: recentSales || 0, // Ensure recent_sales is not null
+              gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+              user_id: dbUser.user_id,
+              last_fetched_time: new Date(), // Populate last_fetched_time
+            };
+          })
+        );
+
+        const { error: upsertError } = await supabase.from("inventory").upsert(upsertData);
+
+        if (upsertError) {
+          console.error(`Error upserting inventory for user ${dbUser.id}:`, upsertError);
+        }
+
+        currentPage++;
+        hasMore = currentPage <= totalPages;
+      }
+
+      console.log(`Finished processing user: ${dbUser.id}`);
     }
+
+    return NextResponse.json({
+      message: "All users processed successfully",
+      hasMore: false,
+      nextCursor: null,
+    });
+  } catch (error) {
+    console.error("Error in POST handler:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "An unexpected error occurred." }, { status: 500 });
   }
-  
+}

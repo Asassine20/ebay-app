@@ -16,12 +16,18 @@ interface Variation {
   picture_url: string;
 }
 
-interface RefreshedToken {
-  access_token: string;
-  expires_at: Date;
-  refresh_token?: string; // Optional property
-}
+interface EbayToken {
+    access_token: string;
+    expires_at: Date;
+    refresh_token: string;
+  }
 
+interface RefreshedToken {
+    access_token: string;
+    expires_at: Date;
+    refresh_token?: string; // Optional property
+  }
+  
 // Fetch variation sales data for the last 30 days
 async function fetchVariationSales(accessToken: string, itemId: string): Promise<Record<string, number>> {
     const endDate = new Date();
@@ -88,7 +94,11 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
     }
   }
 
-  async function fetchItemVariations(accessToken: string, itemId: string, salesData: Record<string, number>): Promise<Variation[]> {
+  async function fetchItemVariations(
+    accessToken: string, 
+    itemId: string, 
+    salesData: Record<string, number>
+    ): Promise<Variation[]> {
     const body = `<?xml version="1.0" encoding="utf-8"?>
   <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
     <RequesterCredentials>
@@ -169,9 +179,8 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
   // Update the main POST handler
   export async function POST() {
     try {
-      const { data: allUsers, error: userError } = await supabase
-        .from("user")
-        .select("id, user_id");
+      // Fetch all users
+      const { data: allUsers, error: userError } = await supabase.from("user").select("id, user_id");
   
       if (userError) {
         console.error("Error fetching users:", userError);
@@ -186,41 +195,51 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
       for (const dbUser of allUsers) {
         console.log(`Processing user: ${dbUser.id}`);
   
+        // Fetch eBay token for the user
         let { data: ebayToken, error: tokenError } = await supabase
           .from("ebay_tokens")
           .select("access_token, expires_at, refresh_token")
           .eq("user_id", dbUser.id)
           .single();
   
-        if (tokenError || !ebayToken || new Date(ebayToken.expires_at) <= new Date()) {
-          console.log(`Refreshing token for user: ${dbUser.id}`);
+        if (tokenError) {
+          console.error(`Error fetching eBay token for user ${dbUser.id}:`, tokenError);
+          continue;
+        }
+  
+        // If the token is expired or does not exist, refresh it
+        if (!ebayToken || new Date(ebayToken.expires_at) <= new Date()) {
+          console.log(`Refreshing eBay token for user: ${dbUser.id}`);
           const refreshedToken = await refreshToken(dbUser.id);
   
           if (!refreshedToken || !refreshedToken.access_token) {
-            console.warn(`Failed to refresh token for user ${dbUser.id}, skipping.`);
+            console.warn(`Failed to refresh eBay token for user ${dbUser.id}, skipping.`);
             continue;
           }
-          
   
-          const { error: upsertError } = await supabase
-            .from("ebay_tokens")
-            .upsert({
-              user_id: dbUser.id,
-              access_token: refreshedToken.access_token,
-              refresh_token: refreshedToken.refresh_token || "",
-              expires_at: refreshedToken.expires_at,
-              updated_time: new Date(),
-            });
+          // Upsert the refreshed token into the database
+          const { error: upsertError } = await supabase.from("ebay_tokens").upsert({
+            user_id: dbUser.id,
+            access_token: refreshedToken.access_token,
+            refresh_token: refreshedToken.refresh_token || "", // Fallback to empty string if not returned
+            expires_at: refreshedToken.expires_at,
+            updated_time: new Date(),
+          });
   
           if (upsertError) {
-            console.error("Error updating token:", upsertError);
+            console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
             continue;
           }
   
-          ebayToken = refreshedToken;
-          
+          // Update local ebayToken with refreshed values
+          ebayToken = {
+            access_token: refreshedToken.access_token,
+            refresh_token: refreshedToken.refresh_token || "",
+            expires_at: refreshedToken.expires_at,
+          };
         }
   
+        // Fetch inventory items for the user
         const { data: inventoryItems, error: inventoryError } = await supabase
           .from("inventory")
           .select("id, item_id")
@@ -231,30 +250,30 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
           continue;
         }
   
+        if (!inventoryItems || inventoryItems.length === 0) {
+          console.log(`No inventory items found for user ${dbUser.id}, skipping.`);
+          continue;
+        }
+  
+        // Process each inventory item
         for (const inventoryItem of inventoryItems) {
           console.log(`Fetching variations for ItemID: ${inventoryItem.item_id}`);
-          if (!ebayToken) {
-            console.log(`No token found for user: ${dbUser.id}, skipping.`);
-            continue;
-          }
-          
+  
           const salesData = await fetchVariationSales(ebayToken.access_token, inventoryItem.item_id);
           const variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id, salesData);
   
           for (const variation of variations) {
-            const { error: upsertError } = await supabase
-              .from("inventoryVariation")
-              .upsert({
-                inventory_id: inventoryItem.id,
-                name: variation.name,
-                price: variation.price,
-                quantity: variation.quantity,
-                quantity_sold: variation.quantity_sold,
-                recent_sales: variation.recent_sales, // Save recent sales
-                picture_url: Array.isArray(variation.picture_url)
-                  ? variation.picture_url[0]
-                  : variation.picture_url,
-              });
+            const { error: upsertError } = await supabase.from("inventoryVariation").upsert({
+              inventory_id: inventoryItem.id,
+              name: variation.name,
+              price: variation.price,
+              quantity: variation.quantity,
+              quantity_sold: variation.quantity_sold,
+              recent_sales: variation.recent_sales,
+              picture_url: Array.isArray(variation.picture_url)
+                ? variation.picture_url[0]
+                : variation.picture_url,
+            });
   
             if (upsertError) {
               console.error(
@@ -262,7 +281,9 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
                 upsertError
               );
             } else {
-              console.log(`Successfully upserted variation: ${variation.name} for ItemID: ${inventoryItem.item_id}`);
+              console.log(
+                `Successfully upserted variation: ${variation.name} for ItemID: ${inventoryItem.item_id}`
+              );
             }
           }
         }

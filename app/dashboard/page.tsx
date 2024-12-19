@@ -41,7 +41,7 @@ export default function Dashboard() {
 
     const fetchTotalEntries = async () => {
       try {
-        const response = await fetch("/api/getTotalListings", {
+        const response = await fetch("/api/get-total-listings", {
           method: "GET",
           headers: { "user-id": userId },
         });

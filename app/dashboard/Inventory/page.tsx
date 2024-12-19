@@ -29,7 +29,7 @@ export default function InventoryPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/getInventory?page=1&entriesPerPage=5000`); // Fetch all data
+      const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`); // Fetch all data
       if (!response.ok) throw new Error("Failed to fetch data");
 
       const { data } = await response.json();

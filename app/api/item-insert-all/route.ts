@@ -16,6 +16,12 @@ interface EbayItem {
   SellingStatus?: { CurrentPrice?: { _: string } | string };
 }
 
+interface RefreshedToken {
+  access_token: string;
+  expires_at: Date;
+  refresh_token?: string; // Optional property
+}
+
 async function fetchEbayItems(
   accessToken: string,
   pageNumber: number,
@@ -119,7 +125,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (!ebayToken || tokenError || new Date(ebayToken.expires_at) <= new Date()) {
         console.log(`Refreshing token for user: ${dbUser.id}`);
-        const refreshedToken = await refreshToken(dbUser.id);
+        const refreshedToken = (await refreshToken(dbUser.id)) as RefreshedToken;
 
         if (!refreshedToken || !refreshedToken.access_token) {
           console.warn(`Failed to refresh token for user ${dbUser.id}, skipping.`);

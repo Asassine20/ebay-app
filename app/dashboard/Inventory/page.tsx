@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
+import VariationModal from "@/components/VariationModal";
 
 interface Item {
-  ItemID: string; // Matches `item_id` in the backend
+  ItemID: string;
   Title: string;
   Price: number;
   Quantity: number;
@@ -22,9 +23,10 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("Fetching listings...");
     fetchListings();
   }, []);
 
@@ -33,7 +35,6 @@ export default function InventoryPage() {
     setError(null);
 
     try {
-      // Initial API call to fetch inventory
       const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
       if (!response.ok) {
         throw new Error("Failed to fetch inventory data");
@@ -41,22 +42,20 @@ export default function InventoryPage() {
 
       const { data } = await response.json();
 
-      // Map data to state
       const processedData = data.map((item: any) => ({
-        ItemID: item.id, // Use the correct field name
+        ItemID: item.id,
         Title: item.title,
         Price: item.price,
         Quantity: item.quantity_available,
         TotalSold: item.total_sold,
         RecentSales: item.recent_sales,
         GalleryURL: item.gallery_url,
-        HasVariations: false, // Initialize as false
+        HasVariations: false,
       }));
 
       setItems(processedData);
 
-      // Fetch variations for visible items
-      const inventoryIds = data.map((item: any) => item.id); // Collect inventory IDs
+      const inventoryIds = data.map((item: any) => item.id);
       fetchVariations(inventoryIds);
     } catch (error: any) {
       setError(error.message || "An unexpected error occurred.");
@@ -79,7 +78,6 @@ export default function InventoryPage() {
 
       const { variations } = await response.json();
 
-      // Update items with variation information
       setItems((prevItems) =>
         prevItems.map((item) => {
           const variation = variations.find((v: any) => v.inventoryId === item.ItemID);
@@ -89,6 +87,16 @@ export default function InventoryPage() {
     } catch (error) {
       console.error("Error fetching variations:", error);
     }
+  };
+
+  const openModal = (itemId: string) => {
+    setSelectedItemId(itemId);
+    setModalIsOpen(true);
+  };
+
+  const closeModal = () => {
+    setSelectedItemId(null);
+    setModalIsOpen(false);
   };
 
   const onQuickFilterChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,12 +180,12 @@ export default function InventoryPage() {
       minWidth: 150,
       cellRenderer: ({ data }: { data: Item }) =>
         data.HasVariations ? (
-          <a
-            href={`/dashboard/inventory/${data.ItemID}`}
+          <button
             className="text-blue-500 hover:underline"
+            onClick={() => openModal(data.ItemID)}
           >
             View Variations
-          </a>
+          </button>
         ) : (
           "None"
         ),
@@ -215,6 +223,13 @@ export default function InventoryPage() {
         />
       </div>
       {loading && <p className="text-center mt-4">Loading...</p>}
+
+      {/* React Modal */}
+      <VariationModal
+        isOpen={modalIsOpen}
+        onRequestClose={closeModal}
+        selectedItemId={selectedItemId}
+      />
     </div>
   );
 }

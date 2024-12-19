@@ -18,14 +18,11 @@ const isProtectedRoute = config.auth.enabled
 
 export default function middleware(req: any) {
   if (config.auth.enabled) {
-    console.log("Checking route:", req.nextUrl.pathname); // Add this log
 
     return clerkMiddleware(async (auth, req) => {
       const resolvedAuth = await auth();
-      console.log("Auth resolved:", resolvedAuth);
 
       if (!resolvedAuth.userId && isProtectedRoute(req)) {
-        console.log("Protected route access denied:", req.nextUrl.pathname);
 
         return resolvedAuth.redirectToSignIn();
       } else {

@@ -13,7 +13,7 @@ if (config.auth.enabled) {
 }
 
 const isProtectedRoute = config.auth.enabled
-  ? createRouteMatcher(["/dashboard(.*)"])
+  ? createRouteMatcher(["/dashboard(.*)", "/dashboard/inventory(.*)"])
   : () => false;
 
 export default function middleware(req: any) {
@@ -40,6 +40,7 @@ export default function middleware(req: any) {
 export const middlewareConfig = {
   matcher: [
     "/dashboard/:path*", // Include all `/dashboard` routes
+    "/dashboard/inventory/:path*",
     "/(api|trpc)(.*)",   // Include API routes
     "/((?!_next/static|favicon\\.ico|[^?]*\\.(html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
   ],

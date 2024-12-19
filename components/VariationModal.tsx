@@ -42,7 +42,7 @@ export default function VariationModal({
 
     try {
       const response = await fetch(
-        `/api/get-variations?itemId=${selectedItemId}&page=${currentPage}&entriesPerPage=10`
+        `/api/get-variations?itemId=${selectedItemId}&page=${currentPage}&entriesPerPage=250`
       );
       if (!response.ok) {
         const errorData = await response.json();
@@ -117,7 +117,7 @@ export default function VariationModal({
           height: "70%",
           backgroundColor: "#1e1e1e",
           color: "#fff",
-          overflow: "hidden",
+          overflow: "auto", // Enable scrolling
         },
         overlay: {
           backgroundColor: "rgba(0, 0, 0, 0.75)",

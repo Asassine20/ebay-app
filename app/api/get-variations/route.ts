@@ -6,7 +6,7 @@ const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SE
 export async function GET(req: NextRequest): Promise<NextResponse> {
     try {
       const { searchParams } = new URL(req.url);
-      const entriesPerPage = parseInt(searchParams.get("entriesPerPage") || "10", 10);
+      const entriesPerPage = parseInt(searchParams.get("entriesPerPage") || "250", 10);
       const page = parseInt(searchParams.get("page") || "1", 10);
       const itemId = searchParams.get("itemId");
   

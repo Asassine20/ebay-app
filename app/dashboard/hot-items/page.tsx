@@ -1,66 +1,220 @@
-"use client"
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+"use client";
 
-const FormSchema = z.object({
-  category: z.string(),
-})
+import React, { useState, useEffect } from "react";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef } from "ag-grid-community";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 
-export default function Category() {
+interface Item {
+  ItemID: string; // Matches `item_id` in the backend
+  Title: string;
+  Price: number;
+  Quantity: number;
+  TotalSold: number;
+  RecentSales: number;
+  GalleryURL?: string;
+  HasVariations: boolean;
+}
 
-  const form = useForm<z.infer<typeof FormSchema>>({
-    resolver: zodResolver(FormSchema),
-    defaultValues: {
-      category: "",
-    }
-  })
+export default function InventoryPage() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
 
-  async function onSubmit(data: z.infer<typeof FormSchema>) {
+  useEffect(() => {
+    console.log("Fetching listings...");
+    fetchListings();
+  }, []);
+
+  const fetchListings = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
+      // Initial API call to fetch inventory
+      const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch inventory data");
+      }
 
+      const { data } = await response.json();
 
-      form.reset()
-      return
-    } catch (error) {
-      return error
+      // Map data to state
+      const processedData = data.map((item: any) => ({
+        ItemID: item.id, // Use the correct field name
+        Title: item.title,
+        Price: item.price,
+        Quantity: item.quantity_available,
+        TotalSold: item.total_sold,
+        RecentSales: item.recent_sales,
+        GalleryURL: item.gallery_url,
+        HasVariations: false, // Initialize as false
+      }));
+
+      setItems(processedData);
+
+      // Fetch variations for visible items
+      const inventoryIds = data.map((item: any) => item.id); // Collect inventory IDs
+      fetchVariations(inventoryIds);
+    } catch (error: any) {
+      setError(error.message || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
+  const fetchVariations = async (inventoryIds: number[]) => {
+    try {
+      const response = await fetch(`/api/check-variations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inventoryIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch variations data");
+      }
+
+      const { variations } = await response.json();
+
+      // Update items with variation information
+      setItems((prevItems) =>
+        prevItems.map((item) => {
+          const variation = variations.find((v: any) => v.inventoryId === item.ItemID);
+          return { ...item, HasVariations: variation?.has_variations || false };
+        })
+      );
+    } catch (error) {
+      console.error("Error fetching variations:", error);
+    }
+  };
+
+  const onQuickFilterChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+  };
+
+  const columns: ColDef<Item>[] = [
+    {
+      headerName: "Image",
+      field: "GalleryURL",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 120,
+      cellRenderer: ({ value }: { value: string }) =>
+        value ? <img src={value} alt="Item" style={{ width: "70px", objectFit: "cover" }} /> : "No Image",
+    },
+    {
+      headerName: "Title",
+      field: "Title",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 3,
+      minWidth: 200,
+      cellStyle: {
+        whiteSpace: "normal",
+        textOverflow: "clip",
+        overflow: "visible",
+        lineHeight: "1.4",
+      },
+      cellRenderer: ({ data }: { data: Item }) => (
+        <a
+          href={`https://www.ebay.com/itm/${data.ItemID}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+        >
+          {data.Title}
+        </a>
+      ),
+    },
+    {
+      headerName: "Price",
+      field: "Price",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: ({ value }: { value: number }) => `$${value.toFixed(2)}`,
+    },
+    {
+      headerName: "Quantity Available",
+      field: "Quantity",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+    },
+    {
+      headerName: "Total Sales",
+      field: "TotalSold",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+    },
+    {
+      headerName: "Recent Sales",
+      field: "RecentSales",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+    },
+    {
+      headerName: "Variations",
+      field: "HasVariations",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 150,
+      cellRenderer: ({ data }: { data: Item }) =>
+        data.HasVariations ? (
+          <a
+            href={`/dashboard/inventory/${data.ItemID}`}
+            className="text-blue-500 hover:underline"
+          >
+            View Variations
+          </a>
+        ) : (
+          "None"
+        ),
+    },
+  ];
 
   return (
-    <main className="flex min-w-screen p-4 flex-col items-center justify-between ">
-      <div className="flex flex-col mb-[5rem] w-full">
-        <h1 className=" text-3xl font-semibold tracking-tight">
-          Publish
-        </h1>
-        <p className="leading-7 text-sm dark:text-gray-400">
-          Get ready to publish articles that have been written and saved
-        </p>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-[600px] space-y-3 mt-[1rem]">
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Enter random piece of information</FormLabel>
-                  <FormControl>
-                    <Input  {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="submit">Submit</Button>
-          </form>
-        </Form>
-
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>
+      {error && <p className="text-red-500">{error}</p>}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search..."
+          value={searchText}
+          onChange={onQuickFilterChanged}
+          className="px-4 py-2 border rounded w-full"
+        />
       </div>
-    </main>
-  )
+      <div className="ag-theme-alpine" style={{ height: "600px", width: "100%" }}>
+        <AgGridReact<Item>
+          rowData={items}
+          columnDefs={columns}
+          defaultColDef={{
+            sortable: true,
+            filter: true,
+            resizable: true,
+            autoHeaderHeight: true,
+            wrapHeaderText: true,
+          }}
+          pagination={true}
+          paginationPageSize={100}
+          quickFilterText={searchText}
+          rowHeight={100}
+        />
+      </div>
+      {loading && <p className="text-center mt-4">Loading...</p>}
+    </div>
+  );
 }

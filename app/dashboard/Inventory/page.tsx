@@ -19,18 +19,28 @@ interface Item {
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null); // Error state
   const [searchText, setSearchText] = useState(""); // Search state
 
   useEffect(() => {
+    console.log("Fetching listings...");
     fetchListings();
   }, []);
 
   const fetchListings = async () => {
     setLoading(true);
+    setError(null); // Reset error state
 
     try {
-      const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`); // Fetch all data
-      if (!response.ok) throw new Error("Failed to fetch data");
+      const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
+
+      console.log("Fetch response:", response);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error fetching inventory:", errorData.message || "Unknown error.");
+        throw new Error(errorData.message || "Failed to fetch inventory.");
+      }
 
       const { data } = await response.json();
 
@@ -45,8 +55,8 @@ export default function InventoryPage() {
       }));
 
       setItems(processedData);
-    } catch (error) {
-      console.error("Error fetching inventory:", error);
+    } catch (error: any) {
+      setError(error.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -60,9 +70,9 @@ export default function InventoryPage() {
     {
       headerName: "Image",
       field: "GalleryURL",
-      autoHeaderHeight: true, 
-      wrapHeaderText: true, 
-      flex: 1, // Make this column dynamic
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
       minWidth: 120,
       cellRenderer: ({ value }: { value: string }) =>
         value ? <img src={value} alt="Item" style={{ width: "70px", objectFit: "cover" }} /> : "No Image",
@@ -70,9 +80,9 @@ export default function InventoryPage() {
     {
       headerName: "Title",
       field: "Title",
-      autoHeaderHeight: true, 
-      wrapHeaderText: true, 
-      flex: 3, // Title gets a larger proportion
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 3,
       minWidth: 200,
       cellRenderer: ({ data }: { data: Item }) => (
         <a
@@ -88,39 +98,42 @@ export default function InventoryPage() {
     {
       headerName: "Price",
       field: "Price",
-      autoHeaderHeight: true, 
-      wrapHeaderText: true, 
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
       flex: 1,
       minWidth: 100,
       valueFormatter: ({ value }: { value: number }) => `$${value.toFixed(2)}`,
     },
-    { 
-      headerName: "Quantity Available", 
-      field: "Quantity", 
-      autoHeaderHeight: true, 
-      wrapHeaderText: true, 
-      flex: 1, 
-      minWidth: 100 },
-    { 
-      headerName: "Total Sales", 
-      field: "TotalSold", 
-      autoHeaderHeight: true, 
-      wrapHeaderText: true, 
-      flex: 1, 
-      minWidth: 100 },
-    { 
-      headerName: "Recent Sales", 
-      field: "RecentSales", 
-      autoHeaderHeight: true, 
-      wrapHeaderText: true, 
-      flex: 1, 
-      minWidth: 100 },
+    {
+      headerName: "Quantity Available",
+      field: "Quantity",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+    },
+    {
+      headerName: "Total Sales",
+      field: "TotalSold",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+    },
+    {
+      headerName: "Recent Sales",
+      field: "RecentSales",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+    },
   ];
 
   return (
-   
-   <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>
+      {error && <p className="text-red-500">{error}</p>}
       <div className="mb-4">
         <input
           type="text"
@@ -131,7 +144,6 @@ export default function InventoryPage() {
         />
       </div>
       <div className="ag-theme-alpine" style={{ height: "600px", width: "100%" }}>
-        
         <AgGridReact<Item>
           rowData={items}
           columnDefs={columns}
@@ -139,9 +151,11 @@ export default function InventoryPage() {
             sortable: true,
             filter: true,
             resizable: true,
+            autoHeaderHeight: true,
+            wrapHeaderText: true,
           }}
-          pagination={true} // Enable client-side pagination
-          paginationPageSize={100} // Page size reduced to 100 rows
+          pagination={true}
+          paginationPageSize={100}
           quickFilterText={searchText}
           rowHeight={100}
         />

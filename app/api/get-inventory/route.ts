@@ -3,13 +3,14 @@ import { getAuth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
-
+console.log("SUPABASE", supabase);
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     // Get user authentication details using Clerk
     const { userId } = getAuth(req);
-
+    console.log(userId);
     if (!userId) {
+      console.log("Unauthorized user authentication");
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -31,9 +32,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const totalItems = totalCount || 0;
 
+    if (totalItems === 0) {
+      return NextResponse.json({ data: [], totalPages: 0, currentPage: page });
+    }
+
     // Fetch all rows in batches if needed
-    const allItems = [];
     const batchSize = 1000; // Supabase's maximum batch size
+    const allItems: any[] = [];
     let start = 0;
 
     while (start < totalItems) {

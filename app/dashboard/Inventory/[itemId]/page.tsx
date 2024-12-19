@@ -7,8 +7,8 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
 export default function InventoryVariationsPage() {
-  const { itemId } = useParams();
-  console.log("Extracted itemId from URL:", itemId);
+  const { itemid } = useParams(); // Lowercase itemid to match the route
+  console.log("Extracted itemid from URL:", itemid);
 
   const [inventoryVariations, setInventoryVariations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export default function InventoryVariationsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   const fetchInventoryVariations = async (currentPage: number) => {
-    if (!itemId) {
+    if (!itemid) {
       console.error("Item ID is missing in the URL.");
       return;
     }
@@ -25,7 +25,7 @@ export default function InventoryVariationsPage() {
 
     try {
       const response = await fetch(
-        `/api/get-variations?itemId=${itemId}&page=${currentPage}&entriesPerPage=250`
+        `/api/get-variations?itemId=${itemid}&page=${currentPage}&entriesPerPage=250`
       );
       if (!response.ok) {
         const errorData = await response.json();
@@ -93,15 +93,21 @@ export default function InventoryVariationsPage() {
         <p className="text-center">Loading...</p>
       ) : inventoryVariations.length > 0 ? (
         <>
-          <div className="ag-theme-alpine mt-4" style={{ height: 500, width: "100%" }}>
+          <div className="ag-theme-alpine mt-4" style={{ height: "600px", width: "100%" }}>
             <AgGridReact
               columnDefs={columnDefs}
               rowData={inventoryVariations}
-              defaultColDef={{ sortable: true, filter: true }}
+              defaultColDef={{ 
+                sortable: true, 
+                filter: true,
+                autoHeaderHeight: true,
+                wrapHeaderText: true,
+               }}
               domLayout="autoHeight"
               pagination={true}
               paginationPageSize={10}
               rowHeight={120} // Taller rows for larger images
+              
             />
           </div>
           <div className="mt-4 flex justify-center">

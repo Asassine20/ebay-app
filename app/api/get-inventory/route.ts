@@ -3,14 +3,12 @@ import { getAuth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
-console.log("SUPABASE", supabase);
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     // Get user authentication details using Clerk
     const { userId } = getAuth(req);
-    console.log(userId);
     if (!userId) {
-      console.log("Unauthorized user authentication");
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,7 +17,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const entriesPerPage = parseInt(searchParams.get("entriesPerPage") || "200", 10);
     const page = parseInt(searchParams.get("page") || "1", 10);
 
-    // Get the total count of items
+    // Get total count of items
     const { count: totalCount, error: countError } = await supabase
       .from("inventory")
       .select("*", { count: "exact", head: true })
@@ -36,8 +34,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ data: [], totalPages: 0, currentPage: page });
     }
 
-    // Fetch all rows in batches if needed
-    const batchSize = 1000; // Supabase's maximum batch size
+    // Fetch all items in batches of 1000
+    const batchSize = 1000;
     const allItems: any[] = [];
     let start = 0;
 
@@ -49,7 +47,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         .range(start, Math.min(start + batchSize - 1, totalItems - 1));
 
       if (batchError) {
-        console.error("Error fetching batch data:", batchError);
+        console.error(`Error fetching batch starting at ${start}:`, batchError);
         return NextResponse.json({ message: "Failed to fetch inventory data" }, { status: 500 });
       }
 
@@ -57,7 +55,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       start += batchSize;
     }
 
-    // Paginate the fetched data for the current page
+    // Paginate the fetched data for the requested page
     const paginatedData = allItems.slice((page - 1) * entriesPerPage, page * entriesPerPage);
 
     return NextResponse.json({

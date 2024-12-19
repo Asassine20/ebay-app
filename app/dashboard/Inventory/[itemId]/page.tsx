@@ -1,4 +1,3 @@
-{/*
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -7,49 +6,50 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
-export default function ItemDetailsPage() {
-  const params = useParams();
-  const [item, setItem] = useState<any>(null);
-  const [status, setStatus] = useState("Loading...");
-  const itemId = params?.itemId;
+export default function InventoryVariationsPage() {
+  const { itemId } = useParams();
+  console.log("Extracted itemId from URL:", itemId);
 
-  useEffect(() => {
+  const [inventoryVariations, setInventoryVariations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchInventoryVariations = async (currentPage: number) => {
     if (!itemId) {
-      setStatus("Item ID not found in URL.");
+      console.error("Item ID is missing in the URL.");
       return;
     }
 
-    const fetchItemDetails = async () => {
-      try {
-        const response = await fetch(`/api/item-details?itemId=${itemId}`);
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log("Fetched item details from API:", data);
-        setItem(data);
-        setStatus("Item loaded successfully.");
-      } catch (error) {
-        console.error("Error fetching item details:", error);
-        setStatus("Error loading item details.");
-      }
-    };
+    setLoading(true);
 
-    fetchItemDetails();
-  }, [itemId]);
+    try {
+      const response = await fetch(
+        `/api/get-variations?itemId=${itemId}&page=${currentPage}&entriesPerPage=250`
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API error details:", errorData);
+        throw new Error(`API error: ${response.status} - ${errorData.message}`);
+      }
+      const { data, totalPages } = await response.json();
+      setInventoryVariations(data);
+      setTotalPages(totalPages);
+    } catch (error) {
+      console.error("Error fetching inventory variations:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    console.log("Updated item state:", item);
-  }, [item]);
+    fetchInventoryVariations(page);
+  }, [page]);
 
-  if (status === "Loading...") return <p>Loading...</p>;
-  if (!item) return <p>{status}</p>;
-
-  // ag-Grid column definitions
   const columnDefs = [
     {
       headerName: "Image",
-      field: "PictureURL",
+      field: "picture_url",
       width: 120,
       cellRenderer: (params: any) =>
         params.value ? (
@@ -64,80 +64,67 @@ export default function ItemDetailsPage() {
     },
     {
       headerName: "Name",
-      field: "Name",
+      field: "name",
       width: 300,
     },
     {
       headerName: "Price",
-      field: "Price",
+      field: "price",
       width: 150,
-      valueGetter: (params: any) => parseFloat(params.data.Price) || 0,
-      valueFormatter: (params: any) =>
-        typeof params.value === "number"
-          ? `$${params.value.toFixed(2)}`
-          : "$0.00",
+      valueFormatter: ({ value }: any) =>
+        typeof value === "number" ? `$${value.toFixed(2)}` : "N/A",
     },
     {
       headerName: "Quantity Available",
-      field: "Quantity",
+      field: "quantity",
       width: 150,
-      valueGetter: (params: any) => parseInt(params.data.Quantity, 10) || 0,
     },
     {
       headerName: "Sales (Last 30 Days)",
-      field: "QuantitySold",
+      field: "recent_sales",
       width: 150,
-      valueGetter: (params: any) => parseInt(params.data.QuantitySold, 10) || 0,
     },
   ];
 
-  // ag-Grid row data
-  const rowData = item.Variations.map((variation: any) => ({
-    PictureURL: variation.PictureURL || null,
-    Name: variation.Name || "N/A",
-    Price: parseFloat(variation.Price) || 0,
-    Quantity: parseInt(variation.Quantity, 10) || 0,
-    QuantitySold: parseInt(variation.QuantitySold, 10) || 0,
-  }));
-
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{item.Title}</h1>
-      <div className="mb-4 flex justify-between items-center">
-        <div>
-          <p className="text-lg">
-            <strong>Price:</strong> ${item.overallPrice}
-          </p>
-          <p className="text-lg">
-            <strong>Quantity:</strong> {item.TotalQuantity}
-          </p>
-        </div>
-        {item.PictureURL && (
-          <img
-            src={item.PictureURL}
-            alt={item.Title}
-            style={{
-              width: "150px",
-              height: "auto",
-              objectFit: "cover",
-            }}
-          />
-        )}
-      </div>
-      <h2 className="text-xl font-bold mt-4">Variations:</h2>
-      <div className="ag-theme-alpine mt-4" style={{ height: 500, width: "100%" }}>
-        <AgGridReact
-          columnDefs={columnDefs}
-          rowData={rowData}
-          defaultColDef={{ sortable: true, filter: true }}
-          domLayout="autoHeight"
-          pagination={true}
-          paginationPageSize={10}
-          rowHeight={120} // Taller rows for larger images
-        />
-      </div>
+      <h1 className="text-2xl font-bold mb-4">Inventory Variations</h1>
+      {loading ? (
+        <p className="text-center">Loading...</p>
+      ) : inventoryVariations.length > 0 ? (
+        <>
+          <div className="ag-theme-alpine mt-4" style={{ height: 500, width: "100%" }}>
+            <AgGridReact
+              columnDefs={columnDefs}
+              rowData={inventoryVariations}
+              defaultColDef={{ sortable: true, filter: true }}
+              domLayout="autoHeight"
+              pagination={true}
+              paginationPageSize={10}
+              rowHeight={120} // Taller rows for larger images
+            />
+          </div>
+          <div className="mt-4 flex justify-center">
+            <button
+              className="px-4 py-2 mx-2 bg-gray-300 rounded"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2">{`Page ${page} of ${totalPages}`}</span>
+            <button
+              className="px-4 py-2 mx-2 bg-gray-300 rounded"
+              disabled={page === totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="text-center">No variations found for this item.</p>
+      )}
     </div>
   );
 }
-
-*/}

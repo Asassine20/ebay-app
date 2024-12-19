@@ -30,11 +30,11 @@ interface RefreshedToken {
   
 // Fetch variation sales data for the last 30 days
 async function fetchVariationSales(accessToken: string, itemId: string): Promise<Record<string, number>> {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 30); // Last 30 days
-  
-    const body = `<?xml version="1.0" encoding="utf-8"?>
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - 30); // Last 30 days
+
+  const body = `<?xml version="1.0" encoding="utf-8"?>
   <GetItemTransactionsRequest xmlns="urn:ebay:apis:eBLBaseComponents">
     <RequesterCredentials>
       <eBayAuthToken>${accessToken}</eBayAuthToken>
@@ -47,52 +47,54 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
       <PageNumber>1</PageNumber>
     </Pagination>
   </GetItemTransactionsRequest>`;
-  
-    const headers: HeadersInit = {
-      "X-EBAY-API-SITEID": "0",
-      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-      "X-EBAY-API-CALL-NAME": "GetItemTransactions",
-      "Content-Type": "text/xml",
-    };
-  
-    try {
-      const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
-      const xml = await res.text();
-  
-      if (!res.ok) {
-        console.error(`Error fetching transaction data for ItemID: ${itemId}, Status: ${res.status}`);
-        return {};
-      }
-  
-      const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-  
-      const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
-      if (!transactions) {
-        return {};
-      }
-  
-      const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
-      const salesData: Record<string, number> = {};
-  
-      transactionArray.forEach((txn) => {
-        const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList;
-        const quantityPurchased = parseInt(txn.QuantityPurchased, 10) || 0;
-  
-        if (variationSpecifics) {
-          const nameValue = Array.isArray(variationSpecifics)
-            ? variationSpecifics.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
-            : `${variationSpecifics.Name}: ${variationSpecifics.Value}`;
-  
-          salesData[nameValue] = (salesData[nameValue] || 0) + quantityPurchased;
-        }
-      });
-  
-      return salesData;
-    } catch (error) {
-      console.error("Error in fetchVariationSales:", error);
+
+  const headers: HeadersInit = {
+    "X-EBAY-API-SITEID": "0",
+    "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+    "X-EBAY-API-CALL-NAME": "GetItemTransactions",
+    "Content-Type": "text/xml",
+  };
+
+  try {
+    const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+    const xml = await res.text();
+
+    if (!res.ok) {
+      console.error(`Error fetching transaction data for ItemID: ${itemId}, Status: ${res.status}`);
       return {};
     }
+
+    const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+    const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
+
+    if (!transactions) {
+      console.log(`No transactions found for ItemID: ${itemId}`);
+      return {};
+    }
+
+    const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
+    const salesData: Record<string, number> = {};
+
+    transactionArray.forEach((txn) => {
+      const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList;
+      const quantityPurchased = parseInt(txn.QuantityPurchased, 10) || 0;
+
+      if (variationSpecifics) {
+        const nameValue = Array.isArray(variationSpecifics)
+          ? variationSpecifics.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
+          : `${variationSpecifics.Name}: ${variationSpecifics.Value}`;
+
+        salesData[nameValue] = (salesData[nameValue] || 0) + quantityPurchased;
+      }
+    });
+
+    return salesData;
+  } catch (error) {
+    console.error("Error in fetchVariationSales:", error);
+    return {};
   }
+}
+
 
   async function fetchItemVariations(
     accessToken: string, 
@@ -207,36 +209,52 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
           continue;
         }
   
-        // If the token is expired or does not exist, refresh it
-        if (!ebayToken || new Date(ebayToken.expires_at) <= new Date()) {
+        // Refresh token if expired or missing
+        if (!ebayToken || !ebayToken.refresh_token || new Date(ebayToken.expires_at) <= new Date()) {
           console.log(`Refreshing eBay token for user: ${dbUser.id}`);
-          const refreshedToken = await refreshToken(dbUser.id);
+          try {
+            const refreshedToken = await refreshToken(dbUser.id) as RefreshedToken;
   
-          if (!refreshedToken || !refreshedToken.access_token) {
-            console.warn(`Failed to refresh eBay token for user ${dbUser.id}, skipping.`);
-            continue;
-          }
+            if (!refreshedToken || !refreshedToken.access_token) {
+              console.warn(`Failed to refresh eBay token for user ${dbUser.id}, skipping.`);
+              continue;
+            }
   
-          // Upsert the refreshed token into the database
-          const { error: upsertError } = await supabase.from("ebay_tokens").upsert({
-            user_id: dbUser.id,
-            access_token: refreshedToken.access_token,
-            refresh_token: refreshedToken.refresh_token || "", // Fallback to empty string if not returned
-            expires_at: refreshedToken.expires_at,
-            updated_time: new Date(),
-          });
-  
+            // Upsert the refreshed token into the database
+            const { error: upsertError } = await supabase
+            .from("ebay_tokens")
+            .upsert(
+              {
+                user_id: dbUser.id,
+                access_token: refreshedToken.access_token,
+                refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+                expires_at: refreshedToken.expires_at,
+                updated_time: new Date(),
+              },
+              { onConflict: "user_id" } // Ensure it matches the unique key
+            );
+          
           if (upsertError) {
             console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
             continue;
           }
+          
   
-          // Update local ebayToken with refreshed values
-          ebayToken = {
-            access_token: refreshedToken.access_token,
-            refresh_token: refreshedToken.refresh_token || "",
-            expires_at: refreshedToken.expires_at,
-          };
+            // Update local ebayToken with refreshed values
+            ebayToken = {
+              access_token: refreshedToken.access_token,
+              refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+              expires_at: refreshedToken.expires_at,
+            };
+          } catch (refreshError) {
+            console.error(`Error refreshing token for userId ${dbUser.id}:`, refreshError);
+            continue;
+          }
+        }
+  
+        if (!ebayToken || !ebayToken.access_token) {
+          console.warn(`No valid eBay token found for user ${dbUser.id}, skipping.`);
+          continue;
         }
   
         // Fetch inventory items for the user
@@ -259,42 +277,45 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
         for (const inventoryItem of inventoryItems) {
           console.log(`Fetching variations for ItemID: ${inventoryItem.item_id}`);
   
-          const salesData = await fetchVariationSales(ebayToken.access_token, inventoryItem.item_id);
-          const variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id, salesData);
+          try {
+            const salesData = await fetchVariationSales(ebayToken.access_token, inventoryItem.item_id);
+            const variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id, salesData);
   
-          for (const variation of variations) {
-            const { error: upsertError } = await supabase.from("inventoryVariation").upsert({
-              inventory_id: inventoryItem.id,
-              name: variation.name,
-              price: variation.price,
-              quantity: variation.quantity,
-              quantity_sold: variation.quantity_sold,
-              recent_sales: variation.recent_sales,
-              picture_url: Array.isArray(variation.picture_url)
-                ? variation.picture_url[0]
-                : variation.picture_url,
-            });
+            for (const variation of variations) {
+              const { error: upsertError } = await supabase.from("inventoryVariation").upsert({
+                inventory_id: inventoryItem.id,
+                name: variation.name,
+                price: variation.price,
+                quantity: variation.quantity,
+                quantity_sold: variation.quantity_sold,
+                recent_sales: variation.recent_sales,
+                picture_url: Array.isArray(variation.picture_url)
+                  ? variation.picture_url[0]
+                  : variation.picture_url,
+              });
   
-            if (upsertError) {
-              console.error(
-                `Error upserting variation for ItemID: ${inventoryItem.item_id}, Variation: ${variation.name}`,
-                upsertError
-              );
-            } else {
-              console.log(
-                `Successfully upserted variation: ${variation.name} for ItemID: ${inventoryItem.item_id}`
-              );
+              if (upsertError) {
+                console.error(
+                  `Error upserting variation for ItemID: ${inventoryItem.item_id}, Variation: ${variation.name}`,
+                  upsertError
+                );
+              } else {
+                console.log(
+                  `Successfully upserted variation: ${variation.name} for ItemID: ${inventoryItem.item_id}`
+                );
+              }
             }
+          } catch (itemError) {
+            console.error(`Error processing ItemID ${inventoryItem.item_id} for user ${dbUser.id}:`, itemError);
           }
         }
   
         console.log(`Finished processing variations for user: ${dbUser.id}`);
       }
   
-      return NextResponse.json({ message: "Variations inserted successfully for all users" });
+      return NextResponse.json({ message: "Variations processed successfully for all users" });
     } catch (error) {
       console.error("Error processing variations:", error);
-      return NextResponse.json({ error: "Failed to insert variations" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to process variations" }, { status: 500 });
     }
   }
-  

@@ -7,20 +7,21 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
 interface Item {
-  ItemID: string;
+  ItemID: string; // Matches `item_id` in the backend
   Title: string;
   Price: number;
   Quantity: number;
   TotalSold: number;
   RecentSales: number;
   GalleryURL?: string;
+  HasVariations: boolean;
 }
 
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); // Error state
-  const [searchText, setSearchText] = useState(""); // Search state
+  const [error, setError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     console.log("Fetching listings...");
@@ -29,36 +30,64 @@ export default function InventoryPage() {
 
   const fetchListings = async () => {
     setLoading(true);
-    setError(null); // Reset error state
+    setError(null);
 
     try {
+      // Initial API call to fetch inventory
       const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
-
-      console.log("Fetch response:", response);
-
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error fetching inventory:", errorData.message || "Unknown error.");
-        throw new Error(errorData.message || "Failed to fetch inventory.");
+        throw new Error("Failed to fetch inventory data");
       }
 
       const { data } = await response.json();
 
+      // Map data to state
       const processedData = data.map((item: any) => ({
-        ItemID: item.item_id,
+        ItemID: item.id, // Use the correct field name
         Title: item.title,
-        Price: item.price || 0,
-        Quantity: item.quantity_available || 0,
-        TotalSold: item.total_sold || 0,
-        RecentSales: item.recent_sales || 0, // Add Recent Sales
+        Price: item.price,
+        Quantity: item.quantity_available,
+        TotalSold: item.total_sold,
+        RecentSales: item.recent_sales,
         GalleryURL: item.gallery_url,
+        HasVariations: false, // Initialize as false
       }));
 
       setItems(processedData);
+
+      // Fetch variations for visible items
+      const inventoryIds = data.map((item: any) => item.id); // Collect inventory IDs
+      fetchVariations(inventoryIds);
     } catch (error: any) {
       setError(error.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVariations = async (inventoryIds: number[]) => {
+    try {
+      const response = await fetch(`/api/check-variations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inventoryIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch variations data");
+      }
+
+      const { variations } = await response.json();
+
+      // Update items with variation information
+      setItems((prevItems) =>
+        prevItems.map((item) => {
+          const variation = variations.find((v: any) => v.inventoryId === item.ItemID);
+          return { ...item, HasVariations: variation?.has_variations || false };
+        })
+      );
+    } catch (error) {
+      console.error("Error fetching variations:", error);
     }
   };
 
@@ -84,6 +113,12 @@ export default function InventoryPage() {
       wrapHeaderText: true,
       flex: 3,
       minWidth: 200,
+      cellStyle: {
+        whiteSpace: "normal",
+        textOverflow: "clip",
+        overflow: "visible",
+        lineHeight: "1.4",
+      },
       cellRenderer: ({ data }: { data: Item }) => (
         <a
           href={`https://www.ebay.com/itm/${data.ItemID}`}
@@ -127,6 +162,25 @@ export default function InventoryPage() {
       wrapHeaderText: true,
       flex: 1,
       minWidth: 100,
+    },
+    {
+      headerName: "Variations",
+      field: "HasVariations",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 150,
+      cellRenderer: ({ data }: { data: Item }) =>
+        data.HasVariations ? (
+          <a
+            href={`/dashboard/inventory/${data.ItemID}`}
+            className="text-blue-500 hover:underline"
+          >
+            View Variations
+          </a>
+        ) : (
+          "None"
+        ),
     },
   ];
 

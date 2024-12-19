@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReactModal from "react-modal";
+import type { ColDef } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 
@@ -59,7 +60,7 @@ export default function VariationModal({
     }
   };
 
-  const columnDefs = [
+  const columnDefs: ColDef<Variation>[] = [
     {
       headerName: "Image",
       field: "picture_url",

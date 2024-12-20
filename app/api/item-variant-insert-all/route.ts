@@ -34,24 +34,93 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - 30); // Last 30 days
 
+  const salesData: Record<string, number> = {};
+  let pageNumber = 1;
+
+  while (true) {
+    const body = `<?xml version="1.0" encoding="utf-8"?>
+    <GetItemTransactionsRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+      <RequesterCredentials>
+        <eBayAuthToken>${accessToken}</eBayAuthToken>
+      </RequesterCredentials>
+      <ItemID>${itemId}</ItemID>
+      <ModTimeFrom>${startDate.toISOString()}</ModTimeFrom>
+      <ModTimeTo>${endDate.toISOString()}</ModTimeTo>
+      <Pagination>
+        <EntriesPerPage>100</EntriesPerPage>
+        <PageNumber>${pageNumber}</PageNumber>
+      </Pagination>
+    </GetItemTransactionsRequest>`;
+
+    const headers: HeadersInit = {
+      "X-EBAY-API-SITEID": "0",
+      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+      "X-EBAY-API-CALL-NAME": "GetItemTransactions",
+      "Content-Type": "text/xml",
+    };
+
+    try {
+      const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
+      const xml = await res.text();
+
+      if (!res.ok) {
+        console.error(`Error fetching transaction data for ItemID: ${itemId}, Status: ${res.status}`);
+        break;
+      }
+
+      const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
+      const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
+
+      if (!transactions) {
+        console.log(`No more transactions found for ItemID: ${itemId} on page ${pageNumber}`);
+        break;
+      }
+
+      const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
+      transactionArray.forEach((txn) => {
+        const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList;
+        const quantityPurchased = parseInt(txn.QuantityPurchased, 10) || 0;
+
+        if (variationSpecifics) {
+          const nameValue = Array.isArray(variationSpecifics)
+            ? variationSpecifics.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
+            : `${variationSpecifics.Name}: ${variationSpecifics.Value}`;
+
+          salesData[nameValue] = (salesData[nameValue] || 0) + quantityPurchased;
+        }
+      });
+
+      // Check if there are more pages
+      const totalPages = parseInt(parsedData.GetItemTransactionsResponse?.PaginationResult?.TotalNumberOfPages || "1", 10);
+      if (pageNumber >= totalPages) break;
+
+      pageNumber++;
+    } catch (error) {
+      console.error("Error in fetchVariationSales:", error);
+      break;
+    }
+  }
+
+  return salesData;
+}
+
+async function fetchItemVariations(
+  accessToken: string,
+  itemId: string,
+  salesData: Record<string, number>
+): Promise<Variation[]> {
   const body = `<?xml version="1.0" encoding="utf-8"?>
-  <GetItemTransactionsRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+  <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
     <RequesterCredentials>
       <eBayAuthToken>${accessToken}</eBayAuthToken>
     </RequesterCredentials>
     <ItemID>${itemId}</ItemID>
-    <ModTimeFrom>${startDate.toISOString()}</ModTimeFrom>
-    <ModTimeTo>${endDate.toISOString()}</ModTimeTo>
-    <Pagination>
-      <EntriesPerPage>100</EntriesPerPage>
-      <PageNumber>1</PageNumber>
-    </Pagination>
-  </GetItemTransactionsRequest>`;
+  </GetItemRequest>`;
 
   const headers: HeadersInit = {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-    "X-EBAY-API-CALL-NAME": "GetItemTransactions",
+    "X-EBAY-API-CALL-NAME": "GetItem",
     "Content-Type": "text/xml",
   };
 
@@ -60,123 +129,63 @@ async function fetchVariationSales(accessToken: string, itemId: string): Promise
     const xml = await res.text();
 
     if (!res.ok) {
-      console.error(`Error fetching transaction data for ItemID: ${itemId}, Status: ${res.status}`);
-      return {};
+      console.error(`Error fetching item variations for ItemID: ${itemId}, Status: ${res.status}`);
+      console.error(`Raw Response Body: ${xml}`);
+      return [];
     }
 
     const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-    const transactions = parsedData.GetItemTransactionsResponse?.TransactionArray?.Transaction;
+    const itemDetails = parsedData.GetItemResponse?.Item;
 
-    if (!transactions) {
-      console.log(`No transactions found for ItemID: ${itemId}`);
-      return {};
+    if (!itemDetails || !itemDetails.Variations?.Variation) {
+      console.log(`No variations found for ItemID: ${itemId}`);
+      return [];
     }
 
-    const transactionArray = Array.isArray(transactions) ? transactions : [transactions];
-    const salesData: Record<string, number> = {};
+    const pictures = itemDetails.Variations?.Pictures?.VariationSpecificPictureSet || [];
 
-    transactionArray.forEach((txn) => {
-      const variationSpecifics = txn.Variation?.VariationSpecifics?.NameValueList;
-      const quantityPurchased = parseInt(txn.QuantityPurchased, 10) || 0;
+    const variations = (Array.isArray(itemDetails.Variations.Variation)
+      ? itemDetails.Variations.Variation
+      : [itemDetails.Variations.Variation]
+    ).map((variation: any): Variation => {
+      const nameValueList = Array.isArray(variation.VariationSpecifics?.NameValueList)
+        ? variation.VariationSpecifics.NameValueList
+        : [variation.VariationSpecifics?.NameValueList];
 
-      if (variationSpecifics) {
-        const nameValue = Array.isArray(variationSpecifics)
-          ? variationSpecifics.map((specific: any) => `${specific.Name}: ${specific.Value}`).join(", ")
-          : `${variationSpecifics.Name}: ${variationSpecifics.Value}`;
+      const name = nameValueList
+        .map((specific: any) => `${specific.Name}: ${specific.Value}`)
+        .join(", ");
 
-        salesData[nameValue] = (salesData[nameValue] || 0) + quantityPurchased;
-      }
+      const price = parseFloat(variation.StartPrice?._ || variation.StartPrice || "0.0");
+      const quantity = parseInt(variation.Quantity || "0", 10);
+      const quantitySold = parseInt(variation.SellingStatus?.QuantitySold || "0", 10);
+      const recentSales = salesData[name] || 0; // Fetch recent sales from salesData
+      const quantityAvailable = Math.max(0, quantity - quantitySold); // Calculate available quantity
+
+      // Match picture for this variation, if available
+      const picture = pictures.find(
+        (pic: any) =>
+          pic.VariationSpecificValue === nameValueList.find((specific: any) => specific.Name)?.Value
+      );
+
+      return {
+        name,
+        price,
+        quantity: quantityAvailable, // Use the calculated quantityAvailable
+        quantity_sold: quantitySold,
+        recent_sales: recentSales, // Include recent sales
+        picture_url: picture?.PictureURL || itemDetails.PictureDetails?.PictureURL || "N/A",
+      };
     });
 
-    return salesData;
+    console.log(`Fetched ${variations.length} variations for ItemID: ${itemId}`);
+    return variations;
   } catch (error) {
-    console.error("Error in fetchVariationSales:", error);
-    return {};
+    console.error(`Error processing item variations for ItemID: ${itemId}`, error);
+    return [];
   }
 }
 
-
-  async function fetchItemVariations(
-    accessToken: string, 
-    itemId: string, 
-    salesData: Record<string, number>
-    ): Promise<Variation[]> {
-    const body = `<?xml version="1.0" encoding="utf-8"?>
-  <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-    <RequesterCredentials>
-      <eBayAuthToken>${accessToken}</eBayAuthToken>
-    </RequesterCredentials>
-    <ItemID>${itemId}</ItemID>
-  </GetItemRequest>`;
-  
-    const headers: HeadersInit = {
-      "X-EBAY-API-SITEID": "0",
-      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-      "X-EBAY-API-CALL-NAME": "GetItem",
-      "Content-Type": "text/xml",
-    };
-  
-    try {
-      const res = await fetch(ebayApiUrl, { method: "POST", headers, body });
-      const xml = await res.text();
-  
-      if (!res.ok) {
-        console.error(`Error fetching item variations for ItemID: ${itemId}, Status: ${res.status}`);
-        console.error(`Raw Response Body: ${xml}`);
-        return [];
-      }
-  
-      const parsedData = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true });
-      const itemDetails = parsedData.GetItemResponse?.Item;
-  
-      if (!itemDetails || !itemDetails.Variations?.Variation) {
-        console.log(`No variations found for ItemID: ${itemId}`);
-        return [];
-      }
-  
-      const pictures = itemDetails.Variations?.Pictures?.VariationSpecificPictureSet || [];
-  
-      const variations = (Array.isArray(itemDetails.Variations.Variation)
-        ? itemDetails.Variations.Variation
-        : [itemDetails.Variations.Variation]
-      ).map((variation: any): Variation => {
-        const nameValueList = Array.isArray(variation.VariationSpecifics?.NameValueList)
-          ? variation.VariationSpecifics.NameValueList
-          : [variation.VariationSpecifics?.NameValueList];
-  
-        const name = nameValueList
-          .map((specific: any) => `${specific.Name}: ${specific.Value}`)
-          .join(", ");
-  
-        const price = parseFloat(variation.StartPrice?._ || variation.StartPrice || "0.0");
-        const quantity = parseInt(variation.Quantity || "0", 10);
-        const quantitySold = parseInt(variation.SellingStatus?.QuantitySold || "0", 10);
-        const recentSales = salesData[name] || 0; // Fetch recent sales from salesData
-  
-        // Match picture for this variation, if available
-        const picture = pictures.find(
-          (pic: any) =>
-            pic.VariationSpecificValue === nameValueList.find((specific: any) => specific.Name)?.Value
-        );
-  
-        return {
-          name,
-          price,
-          quantity,
-          quantity_sold: quantitySold,
-          recent_sales: recentSales, // Include recent sales
-          picture_url: picture?.PictureURL || itemDetails.PictureDetails?.PictureURL || "N/A",
-        };
-      });
-  
-      console.log(`Fetched ${variations.length} variations for ItemID: ${itemId}`);
-      return variations;
-    } catch (error) {
-      console.error(`Error processing item variations for ItemID: ${itemId}`, error);
-      return [];
-    }
-  }
-  
   
   // Update the main POST handler
   export async function POST() {

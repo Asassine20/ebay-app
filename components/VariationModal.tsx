@@ -112,12 +112,12 @@ export default function VariationModal({
       ariaHideApp={false}
       style={{
         content: {
-          width: "80%",
+          width: "90%", // Wider modal
           margin: "auto",
-          height: "70%",
+          height: "90%", // Taller modal
           backgroundColor: "#1e1e1e",
           color: "#fff",
-          overflow: "auto", // Enable scrolling
+          overflow: "hidden", // Prevent overflow
         },
         overlay: {
           backgroundColor: "rgba(0, 0, 0, 0.75)",
@@ -144,7 +144,7 @@ export default function VariationModal({
           <div
             className="ag-theme-alpine-dark"
             style={{
-              height: "500px",
+              height: "calc(100% - 80px)", // Full height minus header/footer
               width: "100%",
             }}
           >
@@ -159,28 +159,11 @@ export default function VariationModal({
                 resizable: true,
                 flex: 1,
               }}
-              domLayout="autoHeight"
+              domLayout="normal" // Adjust layout for full visibility
               pagination={true}
-              paginationPageSize={10}
+              paginationPageSize={250}
               rowHeight={100}
             />
-          </div>
-          <div className="mt-4 flex justify-center">
-            <button
-              className="px-4 py-2 mx-2 bg-gray-300 rounded text-black"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Previous
-            </button>
-            <span className="px-4 py-2">{`Page ${page} of ${totalPages}`}</span>
-            <button
-              className="px-4 py-2 mx-2 bg-gray-300 rounded text-black"
-              disabled={page === totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </button>
           </div>
         </>
       ) : (

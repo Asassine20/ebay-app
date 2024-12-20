@@ -11,6 +11,11 @@ export default function Dashboard() {
   const [authUrl, setAuthUrl] = useState("");
   const [hasEbayToken, setHasEbayToken] = useState<boolean>(false); // Track if the user has an eBay token
 
+  // State for dynamic card data
+  const [recentOutOfStock, setRecentOutOfStock] = useState<number | null>(null);
+  const [lostSales, setLostSales] = useState<number | null>(null);
+  const [restockSoon, setRestockSoon] = useState<number | null>(null);
+
   // Fetch the user ID
   useEffect(() => {
     const fetchUserId = async () => {
@@ -64,7 +69,36 @@ export default function Dashboard() {
     };
 
     fetchTotalEntries();
-  }, [userId]); // Keep this useEffect intact
+  }, [userId]);
+
+  // Fetch data for cards
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchData = async () => {
+      try {
+        // Recent Out of Stock
+        const outOfStockResponse = await fetch("/api/get-recent-out-of-stock");
+        const outOfStockData = await outOfStockResponse.json();
+        setRecentOutOfStock(outOfStockData.total || 0);
+
+        // Lost Sales
+        const lostSalesResponse = await fetch("/api/get-lost-sales");
+        const lostSalesData = await lostSalesResponse.json();
+        setLostSales(lostSalesData.total || 0);
+
+        // Restock Soon
+        const restockSoonResponse = await fetch("/api/get-restock-soon");
+        const restockSoonData = await restockSoonResponse.json();
+        setRestockSoon(restockSoonData.total || 0);
+      } catch (err) {
+        console.error("Error fetching card data:", err);
+        setError("Failed to fetch dashboard data.");
+      }
+    };
+
+    fetchData();
+  }, [userId]);
 
   // Check if the user has an eBay token
   useEffect(() => {
@@ -120,6 +154,7 @@ export default function Dashboard() {
       className="grid gap-6 px-4 pt-4"
       style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}
     >
+      {/* Connect to eBay */}
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Connect to eBay</CardTitle>
@@ -140,19 +175,21 @@ export default function Dashboard() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Total Active Listings */}
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Active Listings</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading || totalEntries === null ? ( // Show skeleton until data is loaded or valid
+          {loading || totalEntries === null ? (
             <div className="skeleton-loader h-8 w-16"></div>
           ) : error ? (
             <div className="text-red-500">{error}</div>
           ) : typeof totalEntries === "number" ? (
             <div className="text-2xl font-bold">{totalEntries}</div>
           ) : (
-            <div className="text-red-500">Connect to eBay</div> // Fallback if no valid data
+            <div className="text-red-500">Connect to eBay</div>
           )}
           <p className="text-xs text-muted-foreground">
             Total number of active eBay listings in your account.
@@ -160,49 +197,39 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-
-
-
+      {/* Recent Out of Stock */}
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Recent Out of Stock Items</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">28</div>
+          <div className="text-2xl font-bold">{recentOutOfStock !== null ? recentOutOfStock : "Loading..."}</div>
           <p className="text-xs text-muted-foreground">
             These items went out of stock within the last 30 days.
-            <br /> Restock soon.
           </p>
         </CardContent>
       </Card>
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Potential Sales Increase</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-500">$1645/month</div>
-          <p className="text-xs text-muted-foreground">
-            Restocking out-of-stock items could boost sales by this amount.
-          </p>
-        </CardContent>
-      </Card>
+
+      {/* Lost Sales */}
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Lost Sales This Month</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-red-600">$963</div>
+          <div className="text-2xl font-bold text-red-600">{lostSales !== null ? `$${lostSales}` : "Loading..."}</div>
           <p className="text-xs text-muted-foreground">
             Estimated revenue lost due to out-of-stock items.
           </p>
         </CardContent>
       </Card>
+
+      {/* Restock Soon */}
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Restock Soon - Top Selling Items</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">7</div>
+          <div className="text-2xl font-bold">{restockSoon !== null ? restockSoon : "Loading..."}</div>
           <p className="text-xs text-muted-foreground">
             These items have been selling rapidly and are soon to go out-of-stock.
           </p>

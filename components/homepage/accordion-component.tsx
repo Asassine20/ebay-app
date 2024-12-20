@@ -15,14 +15,14 @@ export function AccordionComponent() {
             <Accordion type="single" collapsible className="w-full mt-2">
                 <AccordionItem value="item-1">
                     <AccordionTrigger>
-                        <span className="font-medium">How does this tool help me manage my eBay inventory?</span>
+                        <span className="font-medium">How does Restock Radar help me manage my eBay inventory?</span>
                     </AccordionTrigger>
                     <AccordionContent>
                         <p>
-                            Our tool provides real-time inventory analytics, 
+                            Restock Radar provides real-time inventory analytics, 
                             helping you identify best-selling products, 
                             track stock levels, 
-                            and avoid running out of high-demand items. 
+                            and avoid running out of stock on high-demand items. 
                             With actionable insights, 
                             you can optimize restocking decisions and reduce overstocking, 
                             saving time and money.
@@ -31,11 +31,11 @@ export function AccordionComponent() {
                 </AccordionItem>
                 <AccordionItem value="item-1">
                     <AccordionTrigger>
-                        <span className="font-medium">Can this tool integrate directly with my eBay store?</span>
+                        <span className="font-medium">Can Restock Radar integrate directly with my eBay store?</span>
                     </AccordionTrigger>
                     <AccordionContent>
                         <p>
-                            Yes, our platform seamlessly integrates with your eBay store.
+                            Yes, Restock Radar seamlessly integrates with your eBay store.
                             Once connected, it automatically pulls data from your listings
                             and provides detailed insights on your inventory performance.
                         </p>
@@ -43,22 +43,22 @@ export function AccordionComponent() {
                 </AccordionItem>
                 <AccordionItem value="item-1">
                     <AccordionTrigger>
-                        <span className="font-medium">Will this tool notify me if my inventory is running low?</span>
+                        <span className="font-medium">Will Restock Radar notify me if my inventory is running low?</span>
                     </AccordionTrigger>
                     <AccordionContent>
                         <p>
-                            Absolutely! Our tool includes customizable alerts for low stock levels,
+                            Absolutely! Restock Radar includes customizable alerts for low stock levels,
                             ensuring you never miss an opportunity to restock your best-selling items.
                         </p>
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-1">
                     <AccordionTrigger>
-                        <span className="font-medium">How does this tool improve my eBay sales?</span>
+                        <span className="font-medium">How will Restock Radar improve my eBay sales?</span>
                     </AccordionTrigger>
                     <AccordionContent>
                         <p>
-                            By analyzing your inventory and sales data, this tool highlights
+                            By analyzing your inventory and sales data, Restock Radar highlights
                             trends such as your top-performing products and season demanded patterns.
                             This allow you to focus on items that drive revenue and capitalize on
                             growth opportunities.
@@ -79,7 +79,7 @@ export function AccordionComponent() {
                 </AccordionItem>
                 <AccordionItem value="item-1">
                     <AccordionTrigger>
-                        <span className="font-medium">Can I use this tool for multiple eBay stores?</span>
+                        <span className="font-medium">Can I use Restock Radar for multiple eBay stores?</span>
                     </AccordionTrigger>
                     <AccordionContent>
                         <p>
@@ -91,13 +91,13 @@ export function AccordionComponent() {
                 </AccordionItem>
                 <AccordionItem value="item-1">
                     <AccordionTrigger>
-                        <span className="font-medium">Is there a free trial available for this tool?</span>
+                        <span className="font-medium">Is there a free trial available for Restock Radar?</span>
                     </AccordionTrigger>
                     <AccordionContent>
                         <p>
                             While we do not offer a free trial for this tool, we do offer a 30-day money back guarantee. 
-                            If you are not satisfied with our tool after 30 days, you are eligible for a full refund.
-                            Try out our tool and see how it can transform the way you manage your eBay inventory.
+                            If you are not satisfied with Restock Radar after 30 days, you are eligible for a full refund.
+                            Try it out and see how it can transform the way you manage your eBay inventory.
                         </p>
                     </AccordionContent>
                 </AccordionItem>

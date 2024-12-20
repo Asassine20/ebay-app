@@ -62,7 +62,11 @@ export default function NavBar() {
             <NavigationMenu>
                 <NavigationMenuList className="max-[825px]:hidden flex gap-3 w-[100%] justify-between">
                     <Link href="/" className="pl-2 flex items-center" aria-label="Home">
-                        <BlocksIcon aria-hidden="true" />
+                        <img
+                            src="https://utfs.io/f/8iXWGiUIA2TmZeBz1RLlTw170qKu3krvFCSUaX5sYOMmeGtp"
+                            alt="Home Icon"
+                            className="h-12 w-12" // Adjust size as needed
+                        />
                         <span className="sr-only">Home</span>
                     </Link>
                     <NavigationMenuItem>

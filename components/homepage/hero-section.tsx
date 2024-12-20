@@ -9,7 +9,7 @@ export default function HeroSection() {
     return (
         <section className='flex flex-col items-center justify-center leading-6 mt-[3rem]' aria-label="Nextjs Starter Kit Hero">
             <h1 className={`${TITLE_TAILWIND_CLASS} scroll-m-20 font-semibold tracking-tight text-center max-w-[1120px] bg-gradient-to-b dark:text-white`}>
-                Supercharge Your eBay Store with Smarter Inventory Management
+                Supercharge Your eBay Store with <strong>Restock Radar</strong>
             </h1>
             <p className="mx-auto max-w-[700px] text-gray-500 text-center mt-2 dark:text-gray-400">
                 Unlock powerful analytics, streamline operations, and boost sales with our all-in-one eBay inventory tool designed for sellers like you.            </p>
@@ -30,14 +30,6 @@ export default function HeroSection() {
                         Join Discord
                         <ArrowRight className='w-4 h-4' aria-hidden="true" />
                     </Button>
-                </Link>
-                <Link
-                    href="https://github.com/michaelshimeles/nextjs14-starter-template"
-                    target='_blank'
-                    className='animate-buttonheartbeat border p-2 rounded-full mt-5 hover:dark:bg-black hover:cursor-pointer'
-                    aria-label="View NextJS 14 Starter Template on GitHub"
-                >
-                    <Github className='w-5 h-5' aria-hidden="true" />
                 </Link>
             </div>
             <div>

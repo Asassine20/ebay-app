@@ -31,7 +31,7 @@ export default function SideBySide() {
           <div className="lg:pr-8 lg:pt-4">
             <div className="lg:max-w-lg">
               <p className={`${TITLE_TAILWIND_CLASS} mt-2 font-semibold tracking-tight dark:text-white text-gray-900`}>
-                eBay Inventory Analytics Tool: Unlock the Power of Insights
+                Restock Radar: Unlock the Power of Insights
               </p>
               <p className="mt-6 leading-8 text-gray-600 dark:text-gray-400">
                 Transform how you manage your eBay store with real-time analytics and actionable insights.

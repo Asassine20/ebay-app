@@ -9,14 +9,14 @@ const ProjectsData1 = [
   {
     id: 1,
     name: 'GemTCG',
-    description: '"This tool helped me pinpoint exactly where I was losing money from items being out of stock "',
+    description: '"Restock Radar helped me pinpoint exactly where I was losing money from items being out of stock "',
     image: 'https://utfs.io/f/8iXWGiUIA2Tmn1yFhDfqDK043j2ZeB7n9EdPbpgJcNxaO8fV',
     url: "https://www.ebay.com/str/kickznkardzstore"
   },
   {
     id: 2,
     name: 'GGCardsCo',
-    description: '"I was able to double my sales by focusing on restocking items that were selling fast thanks to this tool"',
+    description: '"I was able to double my sales by focusing on restocking items that were selling fast thanks to Restock Radar"',
     image: 'https://utfs.io/f/8iXWGiUIA2TmAZx9c102xvl2qIWrkKmyg17Ch0DTAwcYRNV3',
     url: "https://www.ebay.com/usr/ggcardsco"
   },
@@ -48,7 +48,7 @@ const SpringAnimatedFeatures = () => {
           Trusted by eBay Sellers Worldwide
         </h2>
         <p className="mx-auto max-w-[500px] text-gray-600 dark:text-gray-400 text-center mt-2 ">
-          Hear how our product has helped eBay stores grow, streamline operations, and achieve success.
+          Hear how Restock Radar has helped eBay stores grow, streamline operations, and achieve success.
         </p>
       </div>
       <div className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -91,7 +91,7 @@ const SpringAnimatedFeatures = () => {
         Powered by Industry-Leading Solutions
         </h2>
         <p className="mx-auto max-w-[500px] text-gray-600 dark:text-gray-400 text-center mt-2 ">
-        Our platform is powered by trusted technologies like Stripe and Clerk to ensure a secure and reliable experience.
+        Restock Radar is powered by trusted technologies like Stripe and Clerk to ensure a secure and reliable experience.
         </p>
       </div>
       <div className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

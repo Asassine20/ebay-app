@@ -199,7 +199,7 @@ export default function Dashboard() {
       </Card>
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Restock Soon - Hot Items</CardTitle>
+          <CardTitle className="text-sm font-medium">Restock Soon - Top Selling Items</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">7</div>

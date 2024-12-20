@@ -1,30 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
 interface Item {
-  ItemID: string; // Matches `item_id` in the backend
-  Title: string;
-  Price: number;
-  Quantity: number;
-  TotalSold: number;
-  RecentSales: number;
-  GalleryURL?: string;
-  HasVariations: boolean;
+  id: string;
+  type: string;
+  title: string;
+  price: number;
+  quantity: number;
+  totalSold: number;
+  recentSales: number | string; // String for variations without sales
+  image: string;
 }
 
-export default function InventoryPage() {
+export default function TopSellingItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
-    console.log("Fetching listings...");
     fetchListings();
   }, []);
 
@@ -33,61 +32,18 @@ export default function InventoryPage() {
     setError(null);
 
     try {
-      // Initial API call to fetch inventory
-      const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
+      const response = await fetch(`/api/get-top-selling-items?page=1&entriesPerPage=500`);
       if (!response.ok) {
         throw new Error("Failed to fetch inventory data");
       }
 
       const { data } = await response.json();
 
-      // Map data to state
-      const processedData = data.map((item: any) => ({
-        ItemID: item.id, // Use the correct field name
-        Title: item.title,
-        Price: item.price,
-        Quantity: item.quantity_available,
-        TotalSold: item.total_sold,
-        RecentSales: item.recent_sales,
-        GalleryURL: item.gallery_url,
-        HasVariations: false, // Initialize as false
-      }));
-
-      setItems(processedData);
-
-      // Fetch variations for visible items
-      const inventoryIds = data.map((item: any) => item.id); // Collect inventory IDs
-      fetchVariations(inventoryIds);
+      setItems(data);
     } catch (error: any) {
       setError(error.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchVariations = async (inventoryIds: number[]) => {
-    try {
-      const response = await fetch(`/api/check-variations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inventoryIds }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch variations data");
-      }
-
-      const { variations } = await response.json();
-
-      // Update items with variation information
-      setItems((prevItems) =>
-        prevItems.map((item) => {
-          const variation = variations.find((v: any) => v.inventoryId === item.ItemID);
-          return { ...item, HasVariations: variation?.has_variations || false };
-        })
-      );
-    } catch (error) {
-      console.error("Error fetching variations:", error);
     }
   };
 
@@ -98,7 +54,7 @@ export default function InventoryPage() {
   const columns: ColDef<Item>[] = [
     {
       headerName: "Image",
-      field: "GalleryURL",
+      field: "image",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
@@ -108,7 +64,7 @@ export default function InventoryPage() {
     },
     {
       headerName: "Title",
-      field: "Title",
+      field: "title",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 3,
@@ -119,20 +75,10 @@ export default function InventoryPage() {
         overflow: "visible",
         lineHeight: "1.4",
       },
-      cellRenderer: ({ data }: { data: Item }) => (
-        <a
-          href={`https://www.ebay.com/itm/${data.ItemID}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-500 hover:underline"
-        >
-          {data.Title}
-        </a>
-      ),
     },
     {
       headerName: "Price",
-      field: "Price",
+      field: "price",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
@@ -140,8 +86,8 @@ export default function InventoryPage() {
       valueFormatter: ({ value }: { value: number }) => `$${value.toFixed(2)}`,
     },
     {
-      headerName: "Quantity Available",
-      field: "Quantity",
+      headerName: "Quantity",
+      field: "quantity",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
@@ -149,7 +95,7 @@ export default function InventoryPage() {
     },
     {
       headerName: "Total Sales",
-      field: "TotalSold",
+      field: "totalSold",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
@@ -157,36 +103,29 @@ export default function InventoryPage() {
     },
     {
       headerName: "Recent Sales",
-      field: "RecentSales",
+      field: "recentSales",
+      autoHeaderHeight: true,
+      wrapHeaderText: true,
+      flex: 1,
+      minWidth: 100,
+      valueFormatter: ({ value }: { value: number | string }) =>
+        typeof value === "number" ? value.toString() : "N/A", // Always return a string
+    },
+    {
+      headerName: "Type",
+      field: "type",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
       minWidth: 100,
     },
-    {
-      headerName: "Variations",
-      field: "HasVariations",
-      autoHeaderHeight: true,
-      wrapHeaderText: true,
-      flex: 1,
-      minWidth: 150,
-      cellRenderer: ({ data }: { data: Item }) =>
-        data.HasVariations ? (
-          <a
-            href={`/dashboard/inventory/${data.ItemID}`}
-            className="text-blue-500 hover:underline"
-          >
-            View Variations
-          </a>
-        ) : (
-          "None"
-        ),
-    },
   ];
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>
+      <h1 className="text-2xl font-bold mb-4">Top-Selling Items</h1>
+      <h2 className="text-xl mb-4">Discover your top-performing inventory items and variations</h2>
+
       {error && <p className="text-red-500">{error}</p>}
       <div className="mb-4">
         <input

@@ -39,18 +39,18 @@ export default function DashboardTopNav({ children }: { children: ReactNode }) {
                 </Link>
               </DialogClose>
               <DialogClose asChild>
-                <Link href="/dashboard/out-of-stock">
+                <Link href="/dashboard/out-of-stock-items">
                   <Button variant="outline" className="w-full">
                     <AlertCircle className="mr-2 h-4 w-4" />
-                    Out of Stock
+                    Out of Stock Items
                   </Button>
                 </Link>
               </DialogClose>
               <DialogClose asChild>
-                <Link href="/dashboard/hot-items">
+                <Link href="/dashboard/top-selling-items">
                   <Button variant="outline" className="w-full">
                     <TrendingUp className="mr-2 h-4 w-4" />
-                    Hot Items
+                    Top Selling Items
                   </Button>
                 </Link>
               </DialogClose>

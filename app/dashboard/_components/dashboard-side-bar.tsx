@@ -34,26 +34,26 @@ export default function DashboardSideBar() {
             <Link
               className={clsx("flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50", {
                 "flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900  transition-all hover:text-gray-900 dark:bg-gray-800 dark:text-gray-50 dark:hover:text-gray-50": 
-                pathname === "/dashboard/out-of-stock"
+                pathname === "/dashboard/out-of-stock-items"
               })}
-              href="/dashboard/out-of-stock"
+              href="/dashboard/out-of-stock-items"
             >
               <div className="border rounded-lg dark:bg-black dark:border-gray-800 border-gray-400 p-1 bg-white">
                 <AlertCircle className="h-4 w-4" />
               </div>
-              Out of Stock
+              Out of Stock Items
             </Link>
             <Link
               className={clsx("flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50", {
                 "flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900  transition-all hover:text-gray-900 dark:bg-gray-800 dark:text-gray-50 dark:hover:text-gray-50": 
-                pathname === "/dashboard/hot-items"
+                pathname === "/dashboard/top-selling-items"
               })}
-              href="/dashboard/hot-items"
+              href="/dashboard/top-selling-items"
             >
               <div className="border rounded-lg dark:bg-black dark:border-gray-800 border-gray-400 p-1 bg-white">
                 <TrendingUp className="h-4 w-4" />
               </div>
-              Hot Items
+              Top Selling Items
             </Link>
             <Link
               className={clsx("flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50", {

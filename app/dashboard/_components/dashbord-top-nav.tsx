@@ -8,7 +8,7 @@ import { SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/component
 import { UserProfile } from '@/components/user-profile'
 import config from '@/config'
 import { HamburgerMenuIcon } from '@radix-ui/react-icons'
-import {HomeIcon, TrendingUp, AlertCircle, Archive, Settings,} from "lucide-react"
+import {HomeIcon, TrendingUp, AlertCircle, Archive, Settings,PackageX, RefreshCw} from "lucide-react"
 import Link from 'next/link'
 import { ReactNode } from 'react'
 
@@ -51,6 +51,22 @@ export default function DashboardTopNav({ children }: { children: ReactNode }) {
                   <Button variant="outline" className="w-full">
                     <TrendingUp className="mr-2 h-4 w-4" />
                     Top Selling Items
+                  </Button>
+                </Link>
+              </DialogClose>
+              <DialogClose asChild>
+                <Link href="/dashboard/recent-sold-out">
+                  <Button variant="outline" className="w-full">
+                    <PackageX className="mr-2 h-4 w-4" />
+                    Recently Sold Out
+                  </Button>
+                </Link>
+              </DialogClose>
+              <DialogClose asChild>
+                <Link href="/dashboard/restock-soon">
+                  <Button variant="outline" className="w-full">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Restock Soon
                   </Button>
                 </Link>
               </DialogClose>

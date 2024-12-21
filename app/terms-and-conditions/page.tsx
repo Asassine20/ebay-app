@@ -8,10 +8,10 @@ const TermsAndConditions: React.FC = () => {
 
             <h2 className="text-xl font-bold mb-2">Agreement to Our Legal Terms</h2>
             <p className="mb-4">
-                We are GemTCG, LLC ("Company," "we," "us," "our"), a company registered in Michigan, United States, at 7186 Primrose Lane, Grand Blanc, MI 48439.
+                We are GemTCG, LLC (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; &quot;our&quot;), a company registered in Michigan, United States, at 7186 Primrose Lane, Grand Blanc, MI 48439.
             </p>
             <p className="mb-4">
-                We operate the website <a href="http://www.restockradar.com" className="text-blue-500">http://www.restockradar.com</a> ("Site"), as well as any other related products and services that refer or link to these legal terms ("Legal Terms") (collectively, the "Services").
+                We operate the website <a href="http://www.restockradar.com" className="text-blue-500">http://www.restockradar.com</a> (&quot;Site&quot;), as well as any other related products and services that refer or link to these legal terms (&quot;Legal Terms&quot;) (collectively, the &quot;Services&quot;).
             </p>
             <p className="mb-4">
                 Restock Radar is an eBay inventory analytics tool that helps users identify top-selling items, recently out-of-stock items, and items that need to be restocked soon to prevent stockouts.
@@ -20,12 +20,12 @@ const TermsAndConditions: React.FC = () => {
                 You can contact us by phone at 586-383-5131, email at <a href="mailto:asassine44@gmail.com" className="text-blue-500">asassine44@gmail.com</a>, or by mail to 7186 Primrose Lane, Grand Blanc, MI 48439, United States.
             </p>
             <p className="mb-4">
-                These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you"), and GemTCG, LLC, concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. <strong>IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.</strong>
+                These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&quot;you&quot;), and GemTCG, LLC, concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. <strong>IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.</strong>
             </p>
 
             <h2 className="text-xl font-bold mb-2">Submissions</h2>
             <p className="mb-4">
-                By directly sending us any question, comment, suggestion, idea, feedback, or other information about the Services ("Submissions"), you agree to assign to us all intellectual property rights in such Submission. We shall own this Submission and may use or disseminate it for any lawful purpose, commercial or otherwise, without acknowledgment or compensation to you.
+                By directly sending us any question, comment, suggestion, idea, feedback, or other information about the Services (&quot;Submissions&quot;), you agree to assign to us all intellectual property rights in such Submission. We shall own this Submission and may use or disseminate it for any lawful purpose, commercial or otherwise, without acknowledgment or compensation to you.
             </p>
             <p className="mb-4">
                 You are responsible for what you post or upload:

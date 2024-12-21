@@ -46,7 +46,7 @@ export default async function MarketingPage() {
 
             <section className="mb-8">
               <p className="text-md leading-relaxed">
-                Managing inventory on eBay can be a challenge, especially when tracking hundreds or thousands of products and variations. Restock Radar simplifies your workflow by providing actionable insights into your inventory performance. Whether you're monitoring top selling items or ensuring popular items are always in stock, Restock Radar is your ultimate tool.
+                Managing inventory on eBay can be a challenge, especially when tracking hundreds or thousands of products and variations. Restock Radar simplifies your workflow by providing actionable insights into your inventory performance. Whether you&#39;re monitoring top selling items or ensuring popular items are always in stock, Restock Radar is your ultimate tool.
               </p>
             </section>
 

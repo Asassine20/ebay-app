@@ -6,23 +6,22 @@ import { TITLE_TAILWIND_CLASS } from '@/utils/constants'
 
 const features = [
   {
-    name: 'Optimize Your Listings:',
+    name: 'Optimize Your Listings',
     description:
-      'Gain insights into which products perform best and where to focus your efforts and capital.',
+      'Discover your best-performing products and allocate resources to maximize profits.',
     icon: FaChartLine,
   },
   {
-    name: 'Track Inventory Effortlessly:',
-    description: 'Never run out of stock or oversell again with powerful tracking tools.',
+    name: 'Effortless Inventory Tracking',
+    description: 'Prevent stockouts and overselling with intuitive tracking tools.',
     icon: FiBox,
   },
   {
-    name: 'Actionable Insights:',
-    description: "Make informed decisions to maximize your store's potential.",
+    name: 'Unlock Actionable Insights',
+    description: "Make confident, data-driven decisions to grow your store's potential.",
     icon: AiOutlineBulb,
   },
-]
-
+];
 export default function SideBySide() {
   return (
     <div className="overflow-hidden ">
@@ -31,11 +30,10 @@ export default function SideBySide() {
           <div className="lg:pr-8 lg:pt-4">
             <div className="lg:max-w-lg">
               <p className={`${TITLE_TAILWIND_CLASS} mt-2 font-semibold tracking-tight dark:text-white text-gray-900`}>
-                Restock Radar: Unlock the Power of Insights
+                Restock Radar: Power Your eBay Success
               </p>
               <p className="mt-6 leading-8 text-gray-600 dark:text-gray-400">
-                Transform how you manage your eBay store with real-time analytics and actionable insights.
-                Focus on growth, reduce inefficiencies, and make data-driven decisions with ease.
+              Revolutionize your eBay inventory management. Restock Radar delivers real-time analytics, powerful tracking, and actionable insights to help you focus on growth while reducing inefficiencies.
               </p>
               <dl className="mt-10 max-w-xl space-y-8 leading-7 text-gray-600 lg:max-w-none">
                 {features.map((feature) => (

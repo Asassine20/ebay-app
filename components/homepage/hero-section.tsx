@@ -21,7 +21,7 @@ export default function HeroSection() {
                 </Link>
 
                 <Link
-                    href="https://discord.gg/HUcHdrrDgY"
+                    href="https://discord.gg/UbP6aDWY"
                     target='_blank'
                     className="mt-5"
                     aria-label="Join Discord (opens in a new tab)"

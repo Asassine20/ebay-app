@@ -36,7 +36,7 @@ export default function HeroSection() {
                 <div className="relative flex max-w-6xl justify-center overflow-hidden mt-7">
                     <div className="relative rounded-xl">
                         <Image
-                            src="https://utfs.io/f/31dba2ff-6c3b-4927-99cd-b928eaa54d5f-5w20ij.png"
+                            src="https://utfs.io/f/8iXWGiUIA2TmUqZsHeQ1ih6rIb0CxEmOZFaSlcz3gsfW2vk9"
                             alt="Nextjs Starter Kit Dashboard Preview"
                             width={1100}
                             height={550}
@@ -44,7 +44,7 @@ export default function HeroSection() {
                             className="block rounded-[inherit] border object-contain shadow-lg dark:hidden"
                         />
                         <Image
-                            src="https://utfs.io/f/69a12ab1-4d57-4913-90f9-38c6aca6c373-1txg2.png"
+                            src="https://utfs.io/f/8iXWGiUIA2Tm42CX7WOAYe9v5XQ4FDsPG8BN1ZpozjtkK03J"
                             width={1100}
                             height={550}
                             alt="Nextjs Starter Kit Dark Mode Dashboard Preview"

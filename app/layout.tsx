@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title: 'Restock Radar',
     description: 'Empowering eBay sellers with advanced inventory analytics. Track top-selling items, monitor stock levels, and optimize your eBay inventory management with ease.',
     images: [
-      'https://yourdomain.com/images/restock-radar-og-image.png', // Replace with your actual OG image URL
+      'https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs', // Replace with your actual OG image URL
     ],
     url: 'https://restockradar.com/',
   },
@@ -40,12 +40,12 @@ export default function RootLayout({
           {/* Preload images for faster loading */}
           <link
             rel="preload"
-            href="https://yourdomain.com/images/logo-light.png" // Replace with your logo URL
+            href="https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs" // Replace with your logo URL
             as="image"
           />
           <link
             rel="preload"
-            href="https://yourdomain.com/images/logo-dark.png" // Replace with your dark mode logo URL
+            href="https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs" // Replace with your dark mode logo URL
             as="image"
           />
           {/* Google Analytics Script */}

@@ -5,7 +5,11 @@ import AuthWrapper from '@/components/wrapper/auth-wrapper'
 import { Analytics } from "@vercel/analytics/react"
 import { GeistSans } from 'geist/font/sans'
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import './globals.css'
+
+// Access the GA ID from the environment variable
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://restockradar.com"), // Update with your domain
@@ -44,6 +48,25 @@ export default function RootLayout({
             href="https://yourdomain.com/images/logo-dark.png" // Replace with your dark mode logo URL
             as="image"
           />
+          {/* Google Analytics Script */}
+          {GA_ID && (
+            <>
+              <Script
+                src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+                strategy="afterInteractive"
+              />
+              <Script id="google-analytics" strategy="afterInteractive">
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA_ID}', {
+                    page_path: window.location.pathname,
+                  });
+                `}
+              </Script>
+            </>
+          )}
         </head>
         <body className={GeistSans.className}>
           <Provider>

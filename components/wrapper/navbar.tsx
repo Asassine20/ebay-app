@@ -29,7 +29,7 @@ export default function NavBar() {
                     </SheetTrigger>
                     <SheetContent side="left">
                         <SheetHeader>
-                            <SheetTitle>Next Starter</SheetTitle>
+                            <SheetTitle>Restock Radar</SheetTitle>
                         </SheetHeader>
                         <div className="flex flex-col space-y-3 mt-[1rem]">
                             <DialogClose asChild>
@@ -38,8 +38,13 @@ export default function NavBar() {
                                 </Link>
                             </DialogClose>
                             <DialogClose asChild>
+                                <Link href="/#solutions">
+                                    <Button variant="outline" className="w-full">Solutions</Button>
+                                </Link>
+                            </DialogClose>
+                            <DialogClose asChild>
                                 <Link href="/#reviews">
-                                    <Button variant="outline" className="w-full">Marketing</Button>
+                                    <Button variant="outline" className="w-full">Reviews</Button>
                                 </Link>
                             </DialogClose>
                             <DialogClose asChild>

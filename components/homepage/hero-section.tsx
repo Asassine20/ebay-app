@@ -7,7 +7,7 @@ import { TITLE_TAILWIND_CLASS } from '@/utils/constants';
 
 export default function HeroSection() {
     return (
-        <section className='flex flex-col items-center justify-center leading-6 mt-[3rem]' aria-label="Nextjs Starter Kit Hero">
+        <section className='flex flex-col items-center justify-center leading-6 mt-[3rem]' aria-label="Restock Radar Hero">
             <h1 className={`${TITLE_TAILWIND_CLASS} scroll-m-20 font-semibold tracking-tight text-center max-w-[1120px] bg-gradient-to-b dark:text-white`}>
                 Supercharge Your eBay Store with <strong>Restock Radar</strong>
             </h1>
@@ -37,7 +37,7 @@ export default function HeroSection() {
                     <div className="relative rounded-xl">
                         <Image
                             src="https://utfs.io/f/8iXWGiUIA2TmUqZsHeQ1ih6rIb0CxEmOZFaSlcz3gsfW2vk9"
-                            alt="Nextjs Starter Kit Dashboard Preview"
+                            alt="Restock Radar Dashboard Preview"
                             width={1100}
                             height={550}
                             priority={true}
@@ -47,7 +47,7 @@ export default function HeroSection() {
                             src="https://utfs.io/f/8iXWGiUIA2Tm42CX7WOAYe9v5XQ4FDsPG8BN1ZpozjtkK03J"
                             width={1100}
                             height={550}
-                            alt="Nextjs Starter Kit Dark Mode Dashboard Preview"
+                            alt="Restock Radar Dark Mode Dashboard Preview"
                             priority={true}
                             className="dark:block rounded-[inherit] border object-contain shadow-lg hidden"
                         />

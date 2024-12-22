@@ -37,7 +37,7 @@ const TermsAndConditions: React.FC = () => {
                 <li>Represent that your Submissions do not constitute confidential information.</li>
             </ul>
             <p className="mb-4">
-                You are solely responsible for your Submissions and agree to reimburse us for any losses we may suffer due to your breach of this section, any third party's intellectual property rights, or applicable law.
+                You are solely responsible for your Submissions and agree to reimburse us for any losses we may suffer due to your breach of this section, any third party&#39;s intellectual property rights, or applicable law.
             </p>
 
             <h2 className="text-xl font-bold mb-2">User Representations</h2>

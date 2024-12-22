@@ -1,12 +1,12 @@
-import Provider from '@/app/provider'
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/sonner"
-import AuthWrapper from '@/components/wrapper/auth-wrapper'
-import { Analytics } from "@vercel/analytics/react"
-import { GeistSans } from 'geist/font/sans'
-import type { Metadata } from 'next'
-import Script from 'next/script'
-import './globals.css'
+import Provider from '@/app/provider';
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import AuthWrapper from '@/components/wrapper/auth-wrapper';
+import { Analytics } from "@vercel/analytics/react";
+import { GeistSans } from 'geist/font/sans';
+import type { Metadata } from 'next';
+import Script from 'next/script';
+import './globals.css';
 
 // Access the GA ID from the environment variable
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://restockradar.com"), // Update with your domain
   title: {
     default: 'Restock Radar',
-    template: `%s | Restock Radar`
+    template: `%s | Restock Radar`,
   },
   description: 'Empowering eBay sellers with advanced inventory analytics. Track top-selling items, monitor stock levels, and optimize your eBay inventory management with ease.',
   openGraph: {
@@ -26,12 +26,12 @@ export const metadata: Metadata = {
     ],
     url: 'https://restockradar.com/',
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <AuthWrapper>
@@ -40,14 +40,15 @@ export default function RootLayout({
           {/* Preload images for faster loading */}
           <link
             rel="preload"
-            href="https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs" // Replace with your logo URL
+            href="https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs"
             as="image"
           />
           <link
             rel="preload"
-            href="https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs" // Replace with your dark mode logo URL
+            href="https://utfs.io/f/8iXWGiUIA2TmidpBKKukQcfWJFaYuUItrD1ejPEnKH3SvZGs"
             as="image"
           />
+
           {/* Google Analytics Script */}
           {GA_ID && (
             <>
@@ -67,6 +68,31 @@ export default function RootLayout({
               </Script>
             </>
           )}
+
+          {/* Event Snippets for Conversions */}
+          <Script id="conversion-event-snippet" strategy="afterInteractive">
+            {`
+              // Purchase Event
+              gtag('event', 'manual_event_PURCHASE', {
+                // <event_parameters>
+              });
+
+              // Delayed Navigation Helper for Click Events
+              function gtagSendEvent(url) {
+                var callback = function () {
+                  if (typeof url === 'string') {
+                    window.location = url;
+                  }
+                };
+                gtag('event', 'manual_event_PURCHASE', {
+                  'event_callback': callback,
+                  'event_timeout': 2000,
+                  // <event_parameters>
+                });
+                return false;
+              }
+            `}
+          </Script>
         </head>
         <body className={GeistSans.className}>
           <Provider>
@@ -84,5 +110,5 @@ export default function RootLayout({
         </body>
       </html>
     </AuthWrapper>
-  )
+  );
 }

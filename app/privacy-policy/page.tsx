@@ -40,11 +40,11 @@ export const metadata = {
           </li>
           <li className="mb-2">
             <strong>Affiliate:</strong> means an entity that controls, is controlled by or is under common control with a
-            party, where "control" means ownership of 50% or more of the shares, equity interest or other securities
+            party, where &quot;control&quot; means ownership of 50% or more of the shares, equity interest or other securities
             entitled to vote for election of directors or other managing authority.
           </li>
           <li className="mb-2">
-            <strong>Company:</strong> (referred to as either "the Company", "We", "Us" or "Our" in this Agreement) refers
+            <strong>Company:</strong> (referred to as either &quot;the Company&quot;, &quot;We&quot;, &quot;Us&quot; or &quot;Our&quot; in this Agreement) refers
             to GemTCG LLC, 7186 Primrose Lane, Grand Blanc, MI 48439.
           </li>
           <li className="mb-2">

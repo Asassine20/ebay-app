@@ -27,12 +27,6 @@ export default async function sitemap(): Promise<SitemapEntry[]> {
       changeFrequency: "monthly",
       priority: 1,
     },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: new Date().toISOString(),
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
   ];
 
   return [...staticPages];

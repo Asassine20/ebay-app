@@ -37,6 +37,8 @@ export default function RootLayout({
     <AuthWrapper>
       <html lang="en" suppressHydrationWarning>
         <head>
+          {/* Google Search Console Verification */}
+          <meta name="google-site-verification" content="vyWUXRumpVtfSwcoWMAM0-dEBbz7GQTb_T8MV2_4FD4" />
           {/* Preload images for faster loading */}
           <link
             rel="preload"

@@ -70,7 +70,7 @@ export default function Footer() {
                                     </li>
                                 </ul>
                             </div>
-{/*
+                            {/*
                             <div>
                                 <p className="font-medium ">Helpful Links</p>
 
@@ -98,6 +98,9 @@ export default function Footer() {
                             </ul>
 
                             <p className="mt-8 text-xs  ">&copy; 2024. GemTCG LLC. All rights reserved.</p>
+                            <p className="mt-8 text-xs">
+                                <a href="https://targetrankseo.com" target="_blank">Web Design & SEO by Target Rank SEO</a>
+                            </p>
                         </div>
                     </div>
                 </div>

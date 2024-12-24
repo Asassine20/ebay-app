@@ -6,6 +6,8 @@ import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import VariationModal from "@/components/VariationModal";
+import {Card} from "@/components/ui/card"; // Import the Card component
+import Link from "next/link";
 
 interface Item {
   ItemID: string;
@@ -22,6 +24,7 @@ export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false); // State to track authorization
   const [searchText, setSearchText] = useState("");
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -33,9 +36,17 @@ export default function InventoryPage() {
   const fetchListings = async () => {
     setLoading(true);
     setError(null);
+    setUnauthorized(false); // Reset unauthorized state
 
     try {
       const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
+
+      if (response.status === 403) {
+        // User is not authorized
+        setUnauthorized(true);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error("Failed to fetch inventory data");
       }
@@ -193,8 +204,10 @@ export default function InventoryPage() {
   ];
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 relative">
       <h1 className="text-2xl font-bold mb-4">eBay Active Listings</h1>
+  
+      {/* Other interactive elements */}
       {error && <p className="text-red-500">{error}</p>}
       <div className="mb-4">
         <input
@@ -205,26 +218,55 @@ export default function InventoryPage() {
           className="px-4 py-2 border rounded w-full"
         />
       </div>
-      <div className="ag-theme-alpine" style={{ height: "600px", width: "100%" }}>
-        <AgGridReact<Item>
-          rowData={items}
-          columnDefs={columns}
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-            autoHeaderHeight: true,
-            wrapHeaderText: true,
-          }}
-          pagination={true}
-          paginationPageSize={100}
-          quickFilterText={searchText}
-          rowHeight={100}
-        />
+  
+      {/* Table container with blur and overlay */}
+      <div className="relative">
+        <div className={unauthorized ? "blur-sm" : ""}>
+          <div className="ag-theme-alpine" style={{ height: "600px", width: "100%" }}>
+            <AgGridReact<Item>
+              rowData={items}
+              columnDefs={columns}
+              defaultColDef={{
+                sortable: true,
+                filter: true,
+                resizable: true,
+                autoHeaderHeight: true,
+                wrapHeaderText: true,
+              }}
+              pagination={true}
+              paginationPageSize={100}
+              quickFilterText={searchText}
+              rowHeight={100}
+            />
+          </div>
+        </div>
+  
+        {/* Card positioned over the table */}
+        {unauthorized && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <Card className="w-96 p-6 bg-white shadow-lg rounded-lg">
+              <div className="text-center">
+                <h2 className="text-xl font-bold mb-4">Subscription Required</h2>
+                <p className="mb-4">
+                  You need a subscription to view the inventory data. Click below to view our pricing
+                  plans.
+                </p>
+                <Link
+                  href="/#pricing"
+                  className="bg-black text-white px-4 py-2 rounded"
+                >
+                  View Pricing
+                </Link>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
+  
+      {/* Loading state */}
       {loading && <p className="text-center mt-4">Loading...</p>}
-
-      {/* React Modal */}
+  
+      {/* Modal for variations */}
       <VariationModal
         isOpen={modalIsOpen}
         onRequestClose={closeModal}
@@ -232,4 +274,4 @@ export default function InventoryPage() {
       />
     </div>
   );
-}
+        }

@@ -78,7 +78,7 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         // Recent Out of Stock
-        const outOfStockResponse = await fetch("/api/get-recent-out-of-stock");
+        const outOfStockResponse = await fetch("/api/get-recent-out-of-stock-count");
         const outOfStockData = await outOfStockResponse.json();
         setRecentOutOfStock(outOfStockData.total || 0);
 
@@ -88,7 +88,7 @@ export default function Dashboard() {
         setLostSales(lostSalesData.total || 0);
 
         // Restock Soon
-        const restockSoonResponse = await fetch("/api/get-restock-soon");
+        const restockSoonResponse = await fetch("/api/get-restock-soon-count");
         const restockSoonData = await restockSoonResponse.json();
         setRestockSoon(restockSoonData.total || 0);
       } catch (err) {

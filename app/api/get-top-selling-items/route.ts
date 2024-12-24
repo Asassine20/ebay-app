@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthorized } from "@/utils/data/user/isAuthorized"; // Ensure correct import path for isAuthorized
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
@@ -9,6 +10,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const { userId } = getAuth(req);
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if the user is authorized (valid subscription)
+    const { authorized, message } = await isAuthorized(userId);
+    if (!authorized) {
+      return NextResponse.json({ message }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -27,23 +34,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       console.error("Error fetching inventory data:", inventoryError);
       return NextResponse.json({ message: "Failed to fetch inventory data" }, { status: 500 });
     }
-
-    // Commented out variation fetching logic
-    /*
-    const { data: variationItems, error: variationError } = await supabase
-      .from("inventoryVariation")
-      .select("inventory_id, name, price, quantity, quantity_sold, picture_url")
-      .in(
-        "inventory_id",
-        inventoryItems.map((item) => item.id)
-      )
-      .order("quantity_sold", { ascending: false });
-
-    if (variationError) {
-      console.error("Error fetching variation data:", variationError);
-      return NextResponse.json({ message: "Failed to fetch variation data" }, { status: 500 });
-    }
-    */
 
     // Process only inventory items
     const combinedData = (inventoryItems || []).map((item) => ({

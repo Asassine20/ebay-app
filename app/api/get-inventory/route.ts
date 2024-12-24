@@ -1,23 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthorized } from "@/utils/data/user/isAuthorized";
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    // Get user authentication details using Clerk
     const { userId } = getAuth(req);
     if (!userId) {
+      console.log("Unauthorized: No user ID found.");
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract query parameters
+    const { authorized, message } = await isAuthorized(userId);
+    console.log("Authorization result:", { userId, authorized, message });
+
+    if (!authorized) {
+      console.log("Blocking unauthorized user:", userId);
+      return NextResponse.json({ message }, { status: 403 });
+    }
+
+    // If authorized, proceed to fetch data
+    console.log("Authorized user. Proceeding to fetch data.");
     const { searchParams } = new URL(req.url);
     const entriesPerPage = parseInt(searchParams.get("entriesPerPage") || "200", 10);
     const page = parseInt(searchParams.get("page") || "1", 10);
 
-    // Get total count of items
     const { count: totalCount, error: countError } = await supabase
       .from("inventory")
       .select("*", { count: "exact", head: true })
@@ -34,7 +43,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ data: [], totalPages: 0, currentPage: page });
     }
 
-    // Fetch all items in batches of 1000
     const batchSize = 1000;
     const allItems: any[] = [];
     let start = 0;
@@ -55,7 +63,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       start += batchSize;
     }
 
-    // Paginate the fetched data for the requested page
     const paginatedData = allItems.slice((page - 1) * entriesPerPage, page * entriesPerPage);
 
     return NextResponse.json({

@@ -5,21 +5,18 @@ import { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { Card } from "@/components/ui/card"; // Ensure this is the correct path
+import { Card } from "@/components/ui/card"; // Ensure correct import path
 import Link from "next/link";
 
 interface Item {
   id: string;
-  type: string;
   title: string;
-  price: number;
-  quantity: number;
-  totalSold: number;
-  recentSales: number | string;
-  image: string;
+  recent_sales: number;
+  total_sold: number;
+  gallery_url: string;
 }
 
-export default function TopSellingItemsPage() {
+export default function RecentOutOfStockPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,15 +24,15 @@ export default function TopSellingItemsPage() {
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
-    fetchListings();
+    fetchRecentOutOfStockItems();
   }, []);
 
-  const fetchListings = async () => {
+  const fetchRecentOutOfStockItems = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/get-top-selling-items?page=1&entriesPerPage=500`);
+      const response = await fetch(`/api/get-recent-out-of-stock?page=1&entriesPerPage=500`);
 
       if (response.status === 403) {
         setUnauthorized(true);
@@ -43,7 +40,7 @@ export default function TopSellingItemsPage() {
       }
 
       if (!response.ok) {
-        throw new Error("Failed to fetch inventory data");
+        throw new Error("Failed to fetch recent out-of-stock data");
       }
 
       const { data } = await response.json();
@@ -62,7 +59,7 @@ export default function TopSellingItemsPage() {
   const columns: ColDef<Item>[] = [
     {
       headerName: "Image",
-      field: "image",
+      field: "gallery_url",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
@@ -85,43 +82,16 @@ export default function TopSellingItemsPage() {
       },
     },
     {
-      headerName: "Price",
-      field: "price",
-      autoHeaderHeight: true,
-      wrapHeaderText: true,
-      flex: 1,
-      minWidth: 100,
-      valueFormatter: ({ value }: { value: number }) => `$${value.toFixed(2)}`,
-    },
-    {
-      headerName: "Quantity",
-      field: "quantity",
+      headerName: "Recent Sales (30 Days)",
+      field: "recent_sales",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
       minWidth: 100,
     },
     {
-      headerName: "Total Sales",
-      field: "totalSold",
-      autoHeaderHeight: true,
-      wrapHeaderText: true,
-      flex: 1,
-      minWidth: 100,
-    },
-    {
-      headerName: "Recent Sales",
-      field: "recentSales",
-      autoHeaderHeight: true,
-      wrapHeaderText: true,
-      flex: 1,
-      minWidth: 100,
-      valueFormatter: ({ value }: { value: number | string }) =>
-        typeof value === "number" ? value.toString() : "N/A", // Always return a string
-    },
-    {
-      headerName: "Type",
-      field: "type",
+      headerName: "Total Sold",
+      field: "total_sold",
       autoHeaderHeight: true,
       wrapHeaderText: true,
       flex: 1,
@@ -130,9 +100,11 @@ export default function TopSellingItemsPage() {
   ];
 
   return (
-    <div className="container mx-auto p-4 relative">
-      <h1 className="text-2xl font-bold mb-4">Top-Selling Items</h1>
-      <h2 className="text-xl mb-4">Discover your top-performing inventory items and variations</h2>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Recently Out-of-Stock Items</h1>
+      <h2 className="text-xl mb-4">
+        Review items that have gone out of stock but still have high recent sales.
+      </h2>
 
       {error && <p className="text-red-500">{error}</p>}
       <div className="mb-4">
@@ -145,8 +117,8 @@ export default function TopSellingItemsPage() {
         />
       </div>
 
-      {/* Table container with blur */}
       <div className="relative">
+        {/* Table container with blur */}
         <div className={unauthorized ? "blur-sm" : ""}>
           <div className="ag-theme-alpine" style={{ height: "600px", width: "100%" }}>
             <AgGridReact<Item>
@@ -174,8 +146,8 @@ export default function TopSellingItemsPage() {
               <div className="text-center">
                 <h2 className="text-xl font-bold mb-4">Subscription Required</h2>
                 <p className="mb-4">
-                  You need a subscription to view the top-selling items. Click below to view our pricing
-                  plans.
+                  You need a subscription to view recent out-of-stock items. Click below to view our
+                  pricing plans.
                 </p>
                 <Link
                   href="/#pricing"

@@ -38,6 +38,11 @@ export default function NavBar() {
                                 </Link>
                             </DialogClose>
                             <DialogClose asChild>
+                                <Link href="/features">
+                                    <Button variant="outline" className="w-full">Features</Button>
+                                </Link>
+                            </DialogClose>
+                            <DialogClose asChild>
                                 <Link href="/#solutions">
                                     <Button variant="outline" className="w-full">Solutions</Button>
                                 </Link>
@@ -74,6 +79,11 @@ export default function NavBar() {
                         />
                         <span className="sr-only">Home</span>
                     </Link>
+                    <NavigationMenuItem>
+                        <Link href="/features" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                            Features
+                        </Link>
+                    </NavigationMenuItem>
                     <NavigationMenuItem>
                         <Link href="/#solutions" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
                             Solutions

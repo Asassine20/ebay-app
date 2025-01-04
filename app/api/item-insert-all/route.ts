@@ -218,7 +218,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       if (Date.now() - startTime > 8000) {
         console.log(`Timeout approaching. Recursively calling API with cursor for next batch.`);
         await delay(500); // Add a small delay to avoid overwhelming the server
-        await fetch("http://localhost:3000/api/item-insert-all", {
+        await fetch("https://www.restockradar.com/api/item-insert-all", {
           method: "POST",
           headers: { "Content-Type": "application/json", cursor: JSON.stringify({ userIndex, currentPage, batchIndex: i + ITEMS_PER_BATCH }) },
         });
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (currentPage < totalPages) {
       console.log(`Moving to next page for user ${dbUser.id}`);
       await delay(500); // Add a small delay
-      await fetch("http://localhost:3000/api/item-insert-all", {
+      await fetch("https://www.restockradar.com/api/item-insert-all", {
         method: "POST",
         headers: { "Content-Type": "application/json", cursor: JSON.stringify({ userIndex, currentPage: currentPage + 1, batchIndex: 0 }) },
       });
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     console.log(`Finished processing user ${dbUser.id}`);
     await delay(500); // Add a small delay
-    await fetch("http://localhost:3000/api/item-insert-all", {
+    await fetch("https://www.restockradar.com/api/item-insert-all", {
       method: "POST",
       headers: { "Content-Type": "application/json", cursor: JSON.stringify({ userIndex: userIndex + 1, currentPage: 1, batchIndex: 0 }) },
     });

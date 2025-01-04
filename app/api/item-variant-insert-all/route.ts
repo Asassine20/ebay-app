@@ -206,7 +206,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (!refreshedToken || !refreshedToken.access_token) {
         console.warn(`Failed to refresh eBay token for user ${dbUser.id}, skipping.`);
-        await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        await fetch("https://www.restockradar.com/api/item-insert-all", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (upsertError) {
         console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
-        await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        await fetch("https://www.restockradar.com/api/item-insert-all", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (!ebayToken) {
       console.warn(`No valid eBay token found for user ${dbUser.id}, skipping.`);
-      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+      await fetch("https://www.restockradar.com/api/item-insert-all", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -262,7 +262,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (inventoryError || !inventoryItems || inventoryItems.length === 0) {
       console.error(`Error fetching inventory for user ${dbUser.id}:`, inventoryError);
-      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+      await fetch("https://www.restockradar.com/api/item-insert-all", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -274,7 +274,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (inventoryIndex >= inventoryItems.length) {
       console.log(`Finished processing inventory for user: ${dbUser.id}`);
-      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+      await fetch("https://www.restockradar.com/api/item-insert-all", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -292,7 +292,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (variations.length === 0) {
       console.log(`No variations found for ItemID: ${inventoryItem.item_id}, skipping.`);
-      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+      await fetch("https://www.restockradar.com/api/item-insert-all", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -315,7 +315,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (Date.now() - startProcessingTime > 8000) {
         console.log("Timeout approaching. Returning cursor for next batch.");
-        await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        await fetch("https://www.restockradar.com/api/item-insert-all", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -327,7 +327,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     console.log(`Finished processing all batches for ItemID: ${inventoryItem.item_id}`);
-    await fetch("http://localhost:3000/api/item-variant-insert-all", {
+    await fetch("https://www.restockradar.com/api/item-insert-all", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

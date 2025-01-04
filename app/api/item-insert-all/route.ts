@@ -19,7 +19,7 @@ interface EbayItem {
 interface RefreshedToken {
   access_token: string;
   expires_at: Date;
-  refresh_token?: string; // Optional property
+  refresh_token?: string;
 }
 
 async function fetchEbayItems(
@@ -42,6 +42,7 @@ async function fetchEbayItems(
             </Pagination>
         </ActiveList>
     </GetMyeBaySellingRequest>`;
+
   const headers: HeadersInit = {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
@@ -82,6 +83,7 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
         <PageNumber>1</PageNumber>
     </Pagination>
 </GetItemTransactionsRequest>`;
+
   const headers: HeadersInit = {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
@@ -102,6 +104,9 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const startProcessingTime = Date.now();
+  console.log("Starting processing at:", new Date(startProcessingTime).toISOString());
+
   let cursor = parseInt(req.headers.get("cursor") || "0", 10);
 
   try {
@@ -113,10 +118,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     if (!allUsers || allUsers.length === 0) {
+      console.log("No users found.");
       return NextResponse.json({ message: "No users found", hasMore: false, nextCursor: null });
     }
 
     for (const dbUser of allUsers) {
+      console.log(`Processing user: ${dbUser.id}`);
+
       let { data: ebayToken, error: tokenError } = await supabase
         .from("ebay_tokens")
         .select("access_token, refresh_token, expires_at")
@@ -161,39 +169,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       let hasMore = true;
 
       while (hasMore) {
+        const pageStartTime = Date.now();
         const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, currentPage, ITEMS_PER_BATCH);
 
-        if (items.length === 0) break;
+        if (items.length === 0) {
+          console.log(`No items found on page ${currentPage} for user ${dbUser.id}.`);
+          break;
+        }
 
-        console.log(`User ${dbUser.id}: Fetched ${items.length} items from page ${currentPage} of ${totalPages}`);
+        console.log(`User ${dbUser.id}: Fetched ${items.length} items from page ${currentPage} of ${totalPages} in ${(Date.now() - pageStartTime) / 1000}s.`);
 
-        const upsertData = await Promise.all(
-          items.map(async (item) => {
-            const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken!.access_token);
-            const price =
-              typeof item.SellingStatus?.CurrentPrice === "object"
-                ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
-                : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
-            const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
+        for (let i = 0; i < items.length; i += ITEMS_PER_BATCH) {
+          const batch = items.slice(i, i + ITEMS_PER_BATCH);
+          console.log(`Processing batch ${i / ITEMS_PER_BATCH + 1} with size: ${batch.length}`);
+          const batchStartTime = Date.now();
 
-            return {
-              item_id: item.ItemID,
-              title: item.Title || "Unknown Item",
-              price: price || 0.0, // Ensure price is not null
-              quantity_available: quantityAvailable || 0, // Ensure quantity is not null
-              total_sold: totalSold || 0, // Ensure total_sold is not null
-              recent_sales: recentSales || 0, // Ensure recent_sales is not null
-              gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-              user_id: dbUser.user_id,
-              last_fetched_time: new Date(), // Populate last_fetched_time
-            };
-          })
-        );
+          const upsertData = await Promise.all(
+            batch.map(async (item) => {
+              const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken!.access_token);
+              const price =
+                typeof item.SellingStatus?.CurrentPrice === "object"
+                  ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
+                  : parseFloat(item.SellingStatus?.CurrentPrice || "0.0");
+              const quantityAvailable = parseInt(item.QuantityAvailable || item.Quantity || "0", 10);
 
-        const { error: upsertError } = await supabase.from("inventory").upsert(upsertData);
+              return {
+                item_id: item.ItemID,
+                title: item.Title || "Unknown Item",
+                price: price || 0.0,
+                quantity_available: quantityAvailable || 0,
+                total_sold: totalSold || 0,
+                recent_sales: recentSales || 0,
+                gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+                user_id: dbUser.user_id,
+                last_fetched_time: new Date(),
+              };
+            })
+          );
 
-        if (upsertError) {
-          console.error(`Error upserting inventory for user ${dbUser.id}:`, upsertError);
+          const { error: upsertError } = await supabase.from("inventory").upsert(upsertData);
+
+          console.log(`Batch ${i / ITEMS_PER_BATCH + 1} processed in ${(Date.now() - batchStartTime) / 1000}s.`);
+
+          if (upsertError) {
+            console.error(`Error in batch ${i / ITEMS_PER_BATCH + 1}:`, upsertError);
+          }
         }
 
         currentPage++;
@@ -203,6 +223,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       console.log(`Finished processing user: ${dbUser.id}`);
     }
 
+    console.log(`Total processing time: ${(Date.now() - startProcessingTime) / 1000}s.`);
     return NextResponse.json({
       message: "All users processed successfully",
       hasMore: false,

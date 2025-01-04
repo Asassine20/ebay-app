@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import refreshToken from "@/lib/refresh-ebay-token";
 import { parseStringPromise } from "xml2js";
@@ -171,117 +171,172 @@ async function fetchItemVariations(
   }
 }
 
-export async function POST() {
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  const cursor = JSON.parse(req.headers.get("cursor") || "{}") || {};
+  const { userIndex = 0, inventoryIndex = 0, batchIndex = 0 } = cursor;
+
   try {
     const startProcessingTime = Date.now();
     console.log("Starting processing at:", new Date(startProcessingTime).toISOString());
 
     const { data: allUsers, error: userError } = await supabase.from("user").select("id, user_id");
 
-    if (userError) {
-      console.error("Error fetching users:", userError);
-      return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+    if (userError || !allUsers || allUsers.length === 0) {
+      console.error("Error fetching users or no users found:", userError);
+      return NextResponse.json({ error: "Failed to fetch users or no users found" }, { status: 500 });
     }
 
-    if (!allUsers || allUsers.length === 0) {
-      console.log("No users found.");
-      return NextResponse.json({ message: "No users found" });
+    if (userIndex >= allUsers.length) {
+      console.log("All users processed.");
+      return NextResponse.json({ message: "All users processed successfully" });
     }
 
-    for (const dbUser of allUsers) {
-      console.log(`Processing user: ${dbUser.id}`);
+    const dbUser = allUsers[userIndex];
+    console.log(`Processing user: ${dbUser.id}`);
 
-      let { data: ebayToken, error: tokenError } = await supabase
-        .from("ebay_tokens")
-        .select("access_token, expires_at, refresh_token")
-        .eq("user_id", dbUser.id)
-        .single();
+    let { data: ebayToken, error: tokenError } = await supabase
+      .from("ebay_tokens")
+      .select("access_token, expires_at, refresh_token")
+      .eq("user_id", dbUser.id)
+      .single();
 
-      if (tokenError) {
-        console.error(`Error fetching eBay token for user ${dbUser.id}:`, tokenError);
-        continue;
+    if (!ebayToken || tokenError || new Date(ebayToken.expires_at) <= new Date()) {
+      console.log(`Refreshing eBay token for user: ${dbUser.id}`);
+      const refreshedToken = await refreshToken(dbUser.id) as RefreshedToken;
+
+      if (!refreshedToken || !refreshedToken.access_token) {
+        console.warn(`Failed to refresh eBay token for user ${dbUser.id}, skipping.`);
+        await fetch("http://localhost:3000/api/item-variant-insert-all", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cursor: JSON.stringify({ userIndex: userIndex + 1, inventoryIndex: 0, batchIndex: 0 }),
+          },
+        });
+        return NextResponse.json({ message: "Recursive call initiated for next user." });
       }
 
-      if (!ebayToken || !ebayToken.refresh_token || new Date(ebayToken.expires_at) <= new Date()) {
-        console.log(`Refreshing eBay token for user: ${dbUser.id}`);
-        try {
-          const refreshedToken = await refreshToken(dbUser.id) as RefreshedToken;
+      const { error: upsertError } = await supabase.from("ebay_tokens").upsert({
+        user_id: dbUser.id,
+        access_token: refreshedToken.access_token,
+        refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+        expires_at: refreshedToken.expires_at,
+        updated_time: new Date(),
+      });
 
-          if (!refreshedToken || !refreshedToken.access_token) {
-            console.warn(`Failed to refresh eBay token for user ${dbUser.id}, skipping.`);
-            continue;
-          }
-
-          const { error: upsertError } = await supabase.from("ebay_tokens").upsert(
-            {
-              user_id: dbUser.id,
-              access_token: refreshedToken.access_token,
-              refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
-              expires_at: refreshedToken.expires_at,
-              updated_time: new Date(),
-            },
-            { onConflict: "user_id" }
-          );
-
-          if (upsertError) {
-            console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
-            continue;
-          }
-
-          ebayToken = {
-            access_token: refreshedToken.access_token,
-            refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
-            expires_at: refreshedToken.expires_at,
-          };
-        } catch (refreshError) {
-          console.error(`Error refreshing token for user ${dbUser.id}:`, refreshError);
-          continue;
-        }
+      if (upsertError) {
+        console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
+        await fetch("http://localhost:3000/api/item-variant-insert-all", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cursor: JSON.stringify({ userIndex: userIndex + 1, inventoryIndex: 0, batchIndex: 0 }),
+          },
+        });
+        return NextResponse.json({ message: "Recursive call initiated for next user." });
       }
 
-      const { data: inventoryItems, error: inventoryError } = await supabase
-        .from("inventory")
-        .select("id, item_id")
-        .eq("user_id", dbUser.user_id);
-
-      if (inventoryError || !inventoryItems) {
-        console.error(`Error fetching inventory for user ${dbUser.id}:`, inventoryError);
-        continue;
-      }
-
-      for (const inventoryItem of inventoryItems) {
-        console.log(`Fetching variations for ItemID: ${inventoryItem.item_id}`);
-
-        try {
-          const itemStartTime = Date.now();
-          const salesData = await fetchVariationSales(ebayToken.access_token, inventoryItem.item_id);
-          const variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id, salesData);
-
-          console.log(`Fetched ${variations.length} variations for ItemID: ${inventoryItem.item_id} in ${(Date.now() - itemStartTime) / 1000}s.`);
-
-          for (let i = 0; i < variations.length; i += ITEMS_PER_BATCH) {
-            const batch = variations.slice(i, i + ITEMS_PER_BATCH);
-            console.log(`Processing batch ${i / ITEMS_PER_BATCH + 1} with size: ${batch.length}`);
-            const batchStartTime = Date.now();
-            const { error: upsertError } = await supabase.from("inventoryVariation").upsert(batch);
-            console.log(`Batch ${i / ITEMS_PER_BATCH + 1} processed in ${(Date.now() - batchStartTime) / 1000}s.`);
-            if (upsertError) {
-              console.error(`Error in batch ${i / ITEMS_PER_BATCH + 1}:`, upsertError);
-            }
-          }
-
-        } catch (itemError) {
-          console.error(`Error processing ItemID ${inventoryItem.item_id} for user ${dbUser.id}:`, itemError);
-        }
-      }
-
-      console.log(`Finished processing user: ${dbUser.id}`);
+      ebayToken = {
+        access_token: refreshedToken.access_token,
+        refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+        expires_at: refreshedToken.expires_at,
+      };
     }
 
-    console.log(`Total processing time: ${(Date.now() - startProcessingTime) / 1000}s.`);
-    return NextResponse.json({ message: "Variations processed successfully" });
+    if (!ebayToken) {
+      console.warn(`No valid eBay token found for user ${dbUser.id}, skipping.`);
+      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cursor: JSON.stringify({ userIndex: userIndex + 1, inventoryIndex: 0, batchIndex: 0 }),
+        },
+      });
+      return NextResponse.json({ message: "Recursive call initiated for next user." });
+    }
+
+    const { data: inventoryItems, error: inventoryError } = await supabase
+      .from("inventory")
+      .select("id, item_id")
+      .eq("user_id", dbUser.user_id);
+
+    if (inventoryError || !inventoryItems || inventoryItems.length === 0) {
+      console.error(`Error fetching inventory for user ${dbUser.id}:`, inventoryError);
+      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cursor: JSON.stringify({ userIndex: userIndex + 1, inventoryIndex: 0, batchIndex: 0 }),
+        },
+      });
+      return NextResponse.json({ message: "Recursive call initiated for next user." });
+    }
+
+    if (inventoryIndex >= inventoryItems.length) {
+      console.log(`Finished processing inventory for user: ${dbUser.id}`);
+      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cursor: JSON.stringify({ userIndex: userIndex + 1, inventoryIndex: 0, batchIndex: 0 }),
+        },
+      });
+      return NextResponse.json({ message: "Recursive call initiated for next user." });
+    }
+
+    const inventoryItem = inventoryItems[inventoryIndex];
+    console.log(`Fetching variations for ItemID: ${inventoryItem.item_id}`);
+
+    const salesData = await fetchVariationSales(ebayToken.access_token, inventoryItem.item_id);
+    const variations = await fetchItemVariations(ebayToken.access_token, inventoryItem.item_id, salesData);
+
+    if (variations.length === 0) {
+      console.log(`No variations found for ItemID: ${inventoryItem.item_id}, skipping.`);
+      await fetch("http://localhost:3000/api/item-variant-insert-all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cursor: JSON.stringify({ userIndex, inventoryIndex: inventoryIndex + 1, batchIndex: 0 }),
+        },
+      });
+      return NextResponse.json({ message: "Recursive call initiated for next inventory item." });
+    }
+
+    for (let i = batchIndex; i < variations.length; i += ITEMS_PER_BATCH) {
+      const batch = variations.slice(i, i + ITEMS_PER_BATCH);
+      console.log(`Processing batch ${i / ITEMS_PER_BATCH + 1} for ItemID: ${inventoryItem.item_id}`);
+
+      try {
+        await supabase.from("inventoryVariation").upsert(batch);
+        console.log(`Batch ${i / ITEMS_PER_BATCH + 1} processed successfully for ItemID: ${inventoryItem.item_id}`);
+      } catch (batchError) {
+        console.error(`Error processing batch ${i / ITEMS_PER_BATCH + 1} for ItemID: ${inventoryItem.item_id}:`, batchError);
+      }
+
+      if (Date.now() - startProcessingTime > 8000) {
+        console.log("Timeout approaching. Returning cursor for next batch.");
+        await fetch("http://localhost:3000/api/item-variant-insert-all", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cursor: JSON.stringify({ userIndex, inventoryIndex, batchIndex: i + ITEMS_PER_BATCH }),
+          },
+        });
+        return NextResponse.json({ message: "Recursive call initiated for next batch." });
+      }
+    }
+
+    console.log(`Finished processing all batches for ItemID: ${inventoryItem.item_id}`);
+    await fetch("http://localhost:3000/api/item-variant-insert-all", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cursor: JSON.stringify({ userIndex, inventoryIndex: inventoryIndex + 1, batchIndex: 0 }),
+      },
+    });
+    return NextResponse.json({ message: "Recursive call initiated for next inventory item." });
   } catch (error) {
     console.error("Error in POST handler:", error);
-    return NextResponse.json({ error: "Failed to process variations" }, { status: 500 });
+    return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
   }
 }

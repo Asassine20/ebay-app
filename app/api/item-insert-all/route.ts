@@ -219,14 +219,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
 
       if (Date.now() - startTime > 48000) {
-        console.log(`Timeout approaching. Recursively calling API with cursor for next batch.`);
-        await delay(500); // Add a small delay to avoid overwhelming the server
-        await fetch("https://www.restockradar.com/api/item-insert-all", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", cursor: JSON.stringify({ userIndex, currentPage, batchIndex: i + ITEMS_PER_BATCH }) },
+        console.log(`Timeout approaching. Return cursor for next call.`);
+        return NextResponse.json({
+          message: "Timeout approaching. Resume processing with next cursor.",
+          cursor: { userIndex, currentPage, batchIndex: i + ITEMS_PER_BATCH },
         });
-        return NextResponse.json({ message: "Recursive call initiated." });
-      }
+      }      
     }
 
     if (currentPage < totalPages) {

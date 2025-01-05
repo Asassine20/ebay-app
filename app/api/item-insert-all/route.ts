@@ -5,12 +5,7 @@ import refreshToken from "@/lib/refresh-ebay-token";
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 const ebayApiUrl = "https://api.ebay.com/ws/api.dll";
-const ITEMS_PER_BATCH = 100;
-
-async function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
+const ITEMS_PER_BATCH = 200;
 
 interface EbayItem {
   ItemID: string;
@@ -22,10 +17,10 @@ interface EbayItem {
 }
 
 interface RefreshedToken {
-  access_token: string;
-  expires_at: Date;
-  refresh_token?: string;
-}
+    access_token: string;
+    expires_at: Date;
+    refresh_token?: string; // Optional property
+  }
 
 async function fetchEbayItems(
   accessToken: string,
@@ -47,7 +42,6 @@ async function fetchEbayItems(
             </Pagination>
         </ActiveList>
     </GetMyeBaySellingRequest>`;
-
   const headers: HeadersInit = {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
@@ -88,7 +82,6 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
         <PageNumber>1</PageNumber>
     </Pagination>
 </GetItemTransactionsRequest>`;
-
   const headers: HeadersInit = {
     "X-EBAY-API-SITEID": "0",
     "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
@@ -112,85 +105,73 @@ export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const cursor = JSON.parse(req.headers.get("cursor") || "{}");
-  const { userIndex = 0, currentPage = 1, batchIndex = 0 } = cursor;
+  let cursor = parseInt(req.headers.get("cursor") || "0", 10);
 
   try {
-    const startTime = Date.now();
-    console.log(`Starting processing at: ${new Date(startTime).toISOString()}`);
-
     const { data: allUsers, error: userError } = await supabase.from("user").select("id, user_id");
 
-    if (userError || !allUsers || allUsers.length === 0) {
-      console.error("Error fetching users or no users found:", userError);
-      return NextResponse.json({ error: "Failed to fetch users or no users found" }, { status: 500 });
+    if (userError) {
+      console.error("Error fetching users:", userError);
+      return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
     }
 
-    if (userIndex >= allUsers.length) {
-      console.log("All users processed.");
-      return NextResponse.json({ message: "All users processed successfully" });
+    if (!allUsers || allUsers.length === 0) {
+      return NextResponse.json({ message: "No users found", hasMore: false, nextCursor: null });
     }
 
-    const dbUser = allUsers[userIndex];
-    console.log(`Processing user ${dbUser.id}, userIndex: ${userIndex}`);
+    for (const dbUser of allUsers) {
+      let { data: ebayToken, error: tokenError } = await supabase
+        .from("ebay_tokens")
+        .select("access_token, refresh_token, expires_at")
+        .eq("user_id", dbUser.id)
+        .single();
 
-    let { data: ebayToken, error: tokenError } = await supabase
-      .from("ebay_tokens")
-      .select("access_token, refresh_token, expires_at")
-      .eq("user_id", dbUser.id)
-      .single();
+      if (!ebayToken || tokenError || new Date(ebayToken.expires_at) <= new Date()) {
+        console.log(`Refreshing token for user: ${dbUser.id}`);
+        const refreshedToken = (await refreshToken(dbUser.id)) as RefreshedToken;
 
-    if (!ebayToken || tokenError || new Date(ebayToken.expires_at) <= new Date()) {
-      console.log(`Refreshing token for user: ${dbUser.id}`);
-      const refreshedToken = (await refreshToken(dbUser.id)) as RefreshedToken;
+        if (!refreshedToken || !refreshedToken.access_token) {
+          console.warn(`Failed to refresh token for user ${dbUser.id}, skipping.`);
+          continue;
+        }
 
-      if (!refreshedToken || !refreshedToken.access_token) {
-        console.warn(`Failed to refresh token for user ${dbUser.id}, skipping.`);
-        return NextResponse.json({ cursor: { userIndex: userIndex + 1, currentPage: 1, batchIndex: 0 } });
+        const { error: upsertError } = await supabase.from("ebay_tokens").upsert({
+          user_id: dbUser.id,
+          access_token: refreshedToken.access_token,
+          refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+          expires_at: refreshedToken.expires_at,
+          updated_time: new Date(),
+        });
+
+        if (upsertError) {
+          console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
+          continue;
+        }
+
+        ebayToken = {
+          access_token: refreshedToken.access_token,
+          refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
+          expires_at: refreshedToken.expires_at,
+        };
       }
 
-      const { error: upsertError } = await supabase.from("ebay_tokens").upsert({
-        user_id: dbUser.id,
-        access_token: refreshedToken.access_token,
-        refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
-        expires_at: refreshedToken.expires_at,
-        updated_time: new Date(),
-      });
-
-      if (upsertError) {
-        console.error(`Error updating eBay token for user ${dbUser.id}:`, upsertError);
-        return NextResponse.json({ cursor: { userIndex: userIndex + 1, currentPage: 1, batchIndex: 0 } });
+      if (!ebayToken) {
+        console.warn(`No valid eBay token found for user ${dbUser.id}, skipping.`);
+        continue;
       }
 
-      ebayToken = {
-        access_token: refreshedToken.access_token,
-        refresh_token: refreshedToken.refresh_token || ebayToken?.refresh_token || "",
-        expires_at: refreshedToken.expires_at,
-      };
-    }
+      let currentPage = 1;
+      let hasMore = true;
 
-    if (!ebayToken) {
-      console.warn(`No valid eBay token found for user ${dbUser.id}, skipping.`);
-      return NextResponse.json({ cursor: { userIndex: userIndex + 1, currentPage: 1, batchIndex: 0 } });
-    }
+      while (hasMore) {
+        const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, currentPage, ITEMS_PER_BATCH);
 
-    console.log(`Fetching items for user ${dbUser.id}, page: ${currentPage}`);
-    const { items, totalPages } = await fetchEbayItems(ebayToken.access_token, currentPage, ITEMS_PER_BATCH);
+        if (items.length === 0) break;
 
-    if (items.length === 0) {
-      console.log(`No items found on page ${currentPage} for user ${dbUser.id}. Moving to the next user.`);
-      return NextResponse.json({ cursor: { userIndex: userIndex + 1, currentPage: 1, batchIndex: 0 } });
-    }
+        console.log(`User ${dbUser.id}: Fetched ${items.length} items from page ${currentPage} of ${totalPages}`);
 
-    console.log(`Fetched ${items.length} items from page ${currentPage} for user ${dbUser.id}`);
-
-    for (let i = batchIndex; i < items.length; i += ITEMS_PER_BATCH) {
-      const batch = items.slice(i, i + ITEMS_PER_BATCH);
-      console.log(`Processing batch ${i / ITEMS_PER_BATCH + 1} for user ${dbUser.id}`);
-
-      try {
         const upsertData = await Promise.all(
-          batch.map(async (item) => {
+          items.map(async (item) => {
             const { totalSold, recentSales } = await fetchTransactionData(item.ItemID, ebayToken!.access_token);
             const price =
               typeof item.SellingStatus?.CurrentPrice === "object"
@@ -201,51 +182,37 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             return {
               item_id: item.ItemID,
               title: item.Title || "Unknown Item",
-              price: price || 0.0,
-              quantity_available: quantityAvailable || 0,
-              total_sold: totalSold || 0,
-              recent_sales: recentSales || 0,
+              price: price || 0.0, // Ensure price is not null
+              quantity_available: quantityAvailable || 0, // Ensure quantity is not null
+              total_sold: totalSold || 0, // Ensure total_sold is not null
+              recent_sales: recentSales || 0, // Ensure recent_sales is not null
               gallery_url: item.PictureDetails?.GalleryURL || "N/A",
               user_id: dbUser.user_id,
-              last_fetched_time: new Date(),
+              last_fetched_time: new Date(), // Populate last_fetched_time
             };
           })
         );
 
-        await supabase.from("inventory").upsert(upsertData, { onConflict: "item_id" });
-        console.log(`Batch ${i / ITEMS_PER_BATCH + 1} processed successfully for user ${dbUser.id}`);
-      } catch (batchError) {
-        console.error(`Error processing batch ${i / ITEMS_PER_BATCH + 1} for user ${dbUser.id}:`, batchError);
+        const { error: upsertError } = await supabase.from("inventory").upsert(upsertData);
+
+        if (upsertError) {
+          console.error(`Error upserting inventory for user ${dbUser.id}:`, upsertError);
+        }
+
+        currentPage++;
+        hasMore = currentPage <= totalPages;
       }
 
-      if (Date.now() - startTime > 48000) {
-        console.log(`Timeout approaching. Return cursor for next call.`);
-        return NextResponse.json({
-          message: "Timeout approaching. Resume processing with next cursor.",
-          cursor: { userIndex, currentPage, batchIndex: i + ITEMS_PER_BATCH },
-        });
-      }      
+      console.log(`Finished processing user: ${dbUser.id}`);
     }
 
-    if (currentPage < totalPages) {
-      console.log(`Moving to next page for user ${dbUser.id}`);
-      await delay(500); // Add a small delay
-      await fetch("https://www.restockradar.com/api/item-insert-all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", cursor: JSON.stringify({ userIndex, currentPage: currentPage + 1, batchIndex: 0 }) },
-      });
-      return NextResponse.json({ message: "Recursive call initiated for next page." });
-    }
-
-    console.log(`Finished processing user ${dbUser.id}`);
-    await delay(500); // Add a small delay
-    await fetch("https://www.restockradar.com/api/item-insert-all", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cursor: JSON.stringify({ userIndex: userIndex + 1, currentPage: 1, batchIndex: 0 }) },
+    return NextResponse.json({
+      message: "All users processed successfully",
+      hasMore: false,
+      nextCursor: null,
     });
-    return NextResponse.json({ message: "Recursive call initiated for next user." });
   } catch (error) {
     console.error("Error in POST handler:", error);
-    return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "An unexpected error occurred." }, { status: 500 });
   }
 }

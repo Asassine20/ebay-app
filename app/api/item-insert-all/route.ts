@@ -108,6 +108,9 @@ async function fetchTransactionData(itemId: string, authToken: string): Promise<
   return { totalSold, recentSales };
 }
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const cursor = JSON.parse(req.headers.get("cursor") || "{}");
   const { userIndex = 0, currentPage = 1, batchIndex = 0 } = cursor;

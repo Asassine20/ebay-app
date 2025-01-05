@@ -218,7 +218,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         console.error(`Error processing batch ${i / ITEMS_PER_BATCH + 1} for user ${dbUser.id}:`, batchError);
       }
 
-      if (Date.now() - startTime > 8000) {
+      if (Date.now() - startTime > 48000) {
         console.log(`Timeout approaching. Recursively calling API with cursor for next batch.`);
         await delay(500); // Add a small delay to avoid overwhelming the server
         await fetch("https://www.restockradar.com/api/item-insert-all", {

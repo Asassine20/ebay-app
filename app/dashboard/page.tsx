@@ -20,7 +20,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchUserId = async () => {
       try {
-        const response = await fetch("/api/get-user-id");
+        const response = await fetch("/api/dashboard/get-user-id");
         if (!response.ok) {
           const errorData = await response.json();
           console.error("Error fetching user ID:", errorData.error || "Unknown error.");
@@ -46,7 +46,7 @@ export default function Dashboard() {
 
     const fetchTotalEntries = async () => {
       try {
-        const response = await fetch("/api/get-total-listings", {
+        const response = await fetch("/api/dashboard/get-total-listings", {
           method: "GET",
           headers: { "user-id": userId },
         });
@@ -78,17 +78,17 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         // Recent Out of Stock
-        const outOfStockResponse = await fetch("/api/get-recent-out-of-stock-count");
+        const outOfStockResponse = await fetch("/api/dashboard/get-recent-out-of-stock-count");
         const outOfStockData = await outOfStockResponse.json();
         setRecentOutOfStock(outOfStockData.total || 0);
 
         // Lost Sales
-        const lostSalesResponse = await fetch("/api/get-lost-sales");
+        const lostSalesResponse = await fetch("/api/dashboard/get-lost-sales");
         const lostSalesData = await lostSalesResponse.json();
         setLostSales(lostSalesData.total || 0);
 
         // Restock Soon
-        const restockSoonResponse = await fetch("/api/get-restock-soon-count");
+        const restockSoonResponse = await fetch("/api/dashboard/get-restock-soon-count");
         const restockSoonData = await restockSoonResponse.json();
         setRestockSoon(restockSoonData.total || 0);
       } catch (err) {
@@ -132,7 +132,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchAuthUrl = async () => {
       try {
-        const response = await fetch("/api/ebay-auth");
+        const response = await fetch("/api/dashboard/ebay-auth");
         const data = await response.json();
         if (data.url) {
           setAuthUrl(data.url);

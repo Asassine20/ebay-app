@@ -42,7 +42,7 @@ export default function VariationModal({
 
     try {
       const response = await fetch(
-        `/api/get-variations?itemId=${selectedItemId}&page=${currentPage}&entriesPerPage=250`
+        `/api/dashboard/get-variations?itemId=${selectedItemId}&page=${currentPage}&entriesPerPage=250`
       );
       if (!response.ok) {
         const errorData = await response.json();

@@ -35,7 +35,7 @@ export default function OutOfStockPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/get-out-of-stock-items?page=1&entriesPerPage=5000`);
+      const response = await fetch(`/api/dashboard/get-out-of-stock-items?page=1&entriesPerPage=5000`);
       if (response.status === 403) {
         setUnauthorized(true);
         return;

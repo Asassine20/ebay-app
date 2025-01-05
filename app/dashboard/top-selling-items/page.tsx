@@ -35,7 +35,7 @@ export default function TopSellingItemsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/get-top-selling-items?page=1&entriesPerPage=500`);
+      const response = await fetch(`/api/dashboard/get-top-selling-items?page=1&entriesPerPage=500`);
 
       if (response.status === 403) {
         setUnauthorized(true);

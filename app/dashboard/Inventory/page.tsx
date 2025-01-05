@@ -39,7 +39,7 @@ export default function InventoryPage() {
     setUnauthorized(false); // Reset unauthorized state
 
     try {
-      const response = await fetch(`/api/get-inventory?page=1&entriesPerPage=5000`);
+      const response = await fetch(`/api/dashboard/get-inventory?page=1&entriesPerPage=5000`);
 
       if (response.status === 403) {
         // User is not authorized
@@ -77,7 +77,7 @@ export default function InventoryPage() {
 
   const fetchVariations = async (inventoryIds: number[]) => {
     try {
-      const response = await fetch(`/api/check-variations`, {
+      const response = await fetch(`/api/dashboard/check-variations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inventoryIds }),

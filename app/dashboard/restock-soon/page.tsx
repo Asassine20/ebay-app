@@ -34,7 +34,7 @@ export default function RestockSoonPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/get-restock-soon?page=1&entriesPerPage=500`);
+      const response = await fetch(`/api/dashboard/get-restock-soon?page=1&entriesPerPage=500`);
 
       if (response.status === 403) {
         setUnauthorized(true);

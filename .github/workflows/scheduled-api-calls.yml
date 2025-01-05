@@ -1,0 +1,38 @@
+name: Scheduled API Calls
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs daily at midnight UTC
+
+jobs:
+  fetch-items:
+    name: Fetch Items
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Fetch Items API
+        run: |
+          curl -X POST https://www.restockradar.com/api/fetch-items \
+          -H "Content-Type: application/json"
+
+  fetch-sales:
+    name: Fetch Sales
+    runs-on: ubuntu-latest
+    needs: fetch-items
+
+    steps:
+      - name: Call Fetch Sales API
+        run: |
+          curl -X POST https://www.restockradar.com/api/fetch-sales \
+          -H "Content-Type: application/json"
+
+  fetch-variants:
+    name: Fetch Variants
+    runs-on: ubuntu-latest
+    needs: fetch-sales
+
+    steps:
+      - name: Call Fetch Variants API
+        run: |
+          curl -X POST https://www.restockradar.com/api/fetch-variants \
+          -H "Content-Type: application/json"

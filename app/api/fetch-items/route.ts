@@ -14,6 +14,9 @@ interface RefreshedToken {
   refresh_token?: string;
 }
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
     const cursor = JSON.parse(req.headers.get("cursor") || "{}");
     const { userIndex = 0 } = cursor;

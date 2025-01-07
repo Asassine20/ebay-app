@@ -89,6 +89,9 @@ export default function Footer() {
                         <div className="mt-8 border-t   pt-8">
                             <ul className="flex flex-wrap gap-4 text-xs">
                                 <li>
+                                    <a href="/contact" className="transition hover:opacity-75">Contact Us </a>
+                                </li>
+                                <li>
                                     <a href="/terms-and-conditions" target="_blank" className="transition hover:opacity-75">Terms & Conditions </a>
                                 </li>
 
@@ -97,7 +100,7 @@ export default function Footer() {
                                 </li>
                             </ul>
 
-                            <p className="mt-8 text-xs  ">&copy; 2024. GemTCG LLC. All rights reserved.</p>
+                            <p className="mt-8 text-xs  ">&copy; 2025. GemTCG LLC. All rights reserved.</p>
                             <p className="mt-8 text-xs">
                                 <a href="https://targetrankseo.com" target="_blank">Web Design & SEO by Target Rank SEO</a>
                             </p>

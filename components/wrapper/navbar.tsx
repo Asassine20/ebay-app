@@ -57,6 +57,11 @@ export default function NavBar() {
                                     <Button variant="outline" className="w-full">Pricing</Button>
                                 </Link>
                             </DialogClose>
+                            <DialogClose asChild>
+                                <Link href="/contact">
+                                    <Button variant="outline" className="w-full">Contact</Button>
+                                </Link>
+                            </DialogClose>
                             {isAuthenticated && (
                                 <DialogClose asChild>
                                     <Link href="/dashboard">
@@ -97,6 +102,11 @@ export default function NavBar() {
                     <NavigationMenuItem>
                         <Link href="/#pricing" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
                             Pricing
+                        </Link>
+                    </NavigationMenuItem>
+                    <NavigationMenuItem>
+                        <Link href="/contact" className={cn("px-4 py-2 transition-colors hover:bg-accent hover:text-accent-foreground rounded-md")}>
+                            Contact
                         </Link>
                     </NavigationMenuItem>
                     {isAuthenticated && (

@@ -6,7 +6,7 @@ export default function Contact() {
             <div className="flex flex-col justify-center items-center w-full mt-[1rem] p-3">
                 <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
                 <p className="text-lg text-gray-600 mb-8 text-center max-w-[600px]">
-                    Have questions or need assistance? Fill out the form below and we'll get back to you as soon as possible.
+                    Have questions or need assistance? Fill out the form below and we&apos;ll get back to you as soon as possible.
                 </p>
                 <form
                     action="https://formspree.io/f/mpwwobab"

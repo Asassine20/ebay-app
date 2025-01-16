@@ -212,16 +212,19 @@ export default function Dashboard() {
 
       {/* Lost Sales */}
       <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Lost Sales This Month</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-red-600">{lostSales !== null ? `$${lostSales}` : "Loading..."}</div>
-          <p className="text-xs text-muted-foreground">
-            Estimated revenue lost due to out-of-stock items.
-          </p>
-        </CardContent>
-      </Card>
+  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <CardTitle className="text-sm font-medium">Lost Sales This Month</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold text-red-600">
+      {lostSales !== null ? `$${lostSales.toFixed(2)}` : "Loading..."}
+    </div>
+    <p className="text-xs text-muted-foreground">
+      Estimated revenue lost due to out-of-stock items.
+    </p>
+  </CardContent>
+</Card>
+
 
       {/* Restock Soon */}
       <Card className="w-full">

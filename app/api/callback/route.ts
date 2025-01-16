@@ -87,12 +87,39 @@ export async function GET(request: Request) {
       },
     });
 
-    //console.log("Tokens saved successfully.");
+    // Sequentially call APIs
+    const apis = [
+      { endpoint: "/api/fetch-items", name: "fetch-items" },
+      { endpoint: "/api/fetch-sales", name: "fetch-sales" },
+      { endpoint: "/api/fetch-variants", name: "fetch-variants" },
+    ];
 
-    // Redirect to the dashboard after saving tokens
+    for (const api of apis) {
+      const apiResponse = await fetch(`${process.env.FRONTEND_URL}${api.endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        console.error(`Error calling ${api.name} API:`, await apiResponse.json());
+        return NextResponse.json(
+          { error: `Failed to call ${api.name} API` },
+          { status: 500 }
+        );
+      }
+
+      console.log(`${api.name} API called successfully.`);
+    }
+
+    // Redirect to the dashboard after API calls
     return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (error: any) {
-    console.error("Error fetching tokens:", error.response?.data || error.message);
-    return NextResponse.json({ error: "Failed to fetch tokens." }, { status: 500 });
+    console.error("Error in eBay callback API:", error.response?.data || error.message);
+    return NextResponse.json({ error: "Failed to complete eBay callback." }, { status: 500 });
   }
 }

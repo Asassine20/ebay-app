@@ -12,11 +12,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if the user is authorized (valid subscription)
+/*
     const { authorized, message } = await isAuthorized(userId);
+    console.log("Authorization result:", { userId, authorized, message });
+
     if (!authorized) {
+      console.log("Blocking unauthorized user:", userId);
       return NextResponse.json({ message }, { status: 403 });
     }
+*/
 
     const { searchParams } = new URL(req.url);
     const entriesPerPage = parseInt(searchParams.get("entriesPerPage") || "200", 10);

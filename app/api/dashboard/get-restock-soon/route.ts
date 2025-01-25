@@ -13,11 +13,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if the user is authorized
+/*
     const { authorized, message } = await isAuthorized(userId);
+    console.log("Authorization result:", { userId, authorized, message });
+
     if (!authorized) {
+      console.log("Blocking unauthorized user:", userId);
       return NextResponse.json({ message }, { status: 403 });
     }
+*/
 
     // Extract query parameters
     const { searchParams } = new URL(req.url);

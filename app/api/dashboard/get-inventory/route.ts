@@ -12,7 +12,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       console.log("Unauthorized: No user ID found.");
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
-
+/*
     const { authorized, message } = await isAuthorized(userId);
     console.log("Authorization result:", { userId, authorized, message });
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       console.log("Blocking unauthorized user:", userId);
       return NextResponse.json({ message }, { status: 403 });
     }
-
+*/
     // If authorized, proceed to fetch data
     console.log("Authorized user. Proceeding to fetch data.");
     const { searchParams } = new URL(req.url);

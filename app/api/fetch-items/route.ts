@@ -131,27 +131,49 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   
     if (items.length > 0) {
-      const upsertData = items.map((item: any) => ({
-        item_id: item.ItemID,
-        title: item.Title || "Unknown Item",
-        price:
-          typeof item.SellingStatus?.CurrentPrice === "object"
-            ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
-            : parseFloat(item.SellingStatus?.CurrentPrice || "0.0"),
-        quantity_available: parseInt(item.QuantityAvailable || item.Quantity || "0", 10),
-        gallery_url: item.PictureDetails?.GalleryURL || "N/A",
-        user_id: dbUser.user_id,
-        last_fetched_time: new Date(),
-      }));
+      // Extract item IDs from the fetched items
+      const itemIds = items.map((item: any) => item.ItemID);
   
-      const { error: upsertError } = await supabase.from("inventory").upsert(upsertData);
-      if (upsertError) {
-        console.error(`Upsert Error for user ${dbUser.id}, page ${pageNumber}:`, upsertError);
+      // Check which items already exist in the database
+      const { data: existingItems, error: existingItemsError } = await supabase
+        .from("inventory")
+        .select("item_id")
+        .in("item_id", itemIds);
+  
+      if (existingItemsError) {
+        console.error(`Error checking existing items for user ${dbUser.id}:`, existingItemsError);
+        return { totalPages };
+      }
+  
+      // Filter out items that already exist in the database
+      const existingItemIds = new Set(existingItems.map((item: any) => item.item_id));
+      const newItems = items.filter((item: any) => !existingItemIds.has(item.ItemID));
+  
+      // Upsert only the new items
+      if (newItems.length > 0) {
+        const upsertData = newItems.map((item: any) => ({
+          item_id: item.ItemID,
+          title: item.Title || "Unknown Item",
+          price:
+            typeof item.SellingStatus?.CurrentPrice === "object"
+              ? parseFloat(item.SellingStatus?.CurrentPrice._ || "0.0")
+              : parseFloat(item.SellingStatus?.CurrentPrice || "0.0"),
+          quantity_available: parseInt(item.QuantityAvailable || item.Quantity || "0", 10),
+          gallery_url: item.PictureDetails?.GalleryURL || "N/A",
+          user_id: dbUser.user_id,
+          last_fetched_time: new Date(),
+        }));
+  
+        const { error: upsertError } = await supabase.from("inventory").upsert(upsertData);
+        if (upsertError) {
+          console.error(`Upsert Error for user ${dbUser.id}, page ${pageNumber}:`, upsertError);
+        } else {
+          console.log(`Upserted ${upsertData.length} items for user ${dbUser.id}, page ${pageNumber}`);
+        }
       } else {
-        console.log(`Upserted ${upsertData.length} items for user ${dbUser.id}, page ${pageNumber}`);
+        console.log(`No new items to upsert for user ${dbUser.id}, page ${pageNumber}`);
       }
     }
   
     return { totalPages };
   }
-  
